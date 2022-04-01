@@ -3,8 +3,8 @@
 ================================================================================================#=
 stm32-gcc-linux-quick-start/filelist.txt
 ================================================================================================#=
-stm32-gcc-linux-quick-start/LICENSE
 stm32-gcc-linux-quick-start/README.md
+stm32-gcc-linux-quick-start/LICENSE
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 stm32-gcc-linux-quick-start/apps/button-blinky-it
@@ -22,11 +22,16 @@ mcu/vtor
 mcu/vtor/README.md
 mcu/vtor/reset-handler-cm0-default.s
 
+mcu/STM32CubeF0
 
 
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|@
+\\wsl$\Ubuntu\home\rae\stm-fun\stm32-gcc-linux-quick-start\mcu
+README.md
+vtor
+linker-script
 \\wsl$\Ubuntu\home\rae\stm-fun\stm32-gcc-linux-quick-start\mcu
 vtor
 linker-script
