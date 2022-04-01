@@ -26,6 +26,7 @@ project that blinks an LED and more.  Aspirational platform features include:
 - more to come!
 
 ## Getting started
+The following instructions assume you are using Linux: WSL (my fav), virtual machine, or native.
 #### Clone
 This repo has submodules, so be sure to clone with the option shown below.
 ```

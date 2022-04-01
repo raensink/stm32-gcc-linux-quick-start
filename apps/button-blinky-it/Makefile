@@ -53,7 +53,7 @@ SRC_FILES += mcu/stm32f0/core/clock.c
 # Linker Script
 # Path to the linker script file for building this executable.
 # ----------------------------------------------------------------------+-
-LINKER_SCRIPT = mcu/stm32f0/STM32F091RCTx_FLASH.ld
+LINKER_SCRIPT = mcu/linker-script/STM32F0-GCC-STM32F091RCTx_FLASH.ld
 
 # ----------------------------------------------------------------------+-
 # Compiler & Linker Options
