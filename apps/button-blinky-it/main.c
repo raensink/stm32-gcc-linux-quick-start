@@ -12,12 +12,12 @@ SPDX-License-Identifier: MIT-0
 
 #include "CMSIS/Device/ST/STM32F0xx/Include/stm32f091xc.h"
 
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_bus.h"
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_system.h"
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_rcc.h"
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_gpio.h"
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_exti.h"
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_utils.h"
+// #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_bus.h"
+// #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_system.h"
+// #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_rcc.h"
+// #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_gpio.h"
+// #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_exti.h"
+// #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_utils.h"
 
 
 // =============================================================================================#=

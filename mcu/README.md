@@ -1,30 +1,18 @@
 # stm32-gcc-linux-quick-start
 
-## Top Level Folders
-#### apps
-One or more applications supported by this project.
-Multiple application builds may exist in this project folder concurrently,
-but only one at a time may be loaded and executed on the target.
-
-#### platform
-Future.  Reusable components that support the applications.
-
-#### board
-Future.  Source code that is specific to a particular board.
-
-#### core
-Core embedded features and capabilities necessary for many embedded projects.
-
-#### mcu
+## MCU Folder
 Startup code and low-level drivers specific to a particular microcontroller.
 
-#### tools
-Develoment tools for building, deploying, and testing this project.
+#### linker-script
+GCC linker scripts for a variety of STM32 microcontrollers.
 
-#### build
-This is a temporary folder that is automatically created by the build scripts.
-All derived build products exist in this directory.
-This folder is excluded from the repo using the .gitignore file.
-A make clean operation will delete this entire folder.
+#### Cube
+
+Instructions for re-creating the submodule (if you must).
+(These instructions assume you are using Linux.)
+```
+cd  stm32-gcc-linux-quick-start  # project root
+git submodule add  https://github.com/STMicroelectronics/STM32CubeF0.git  ./mcu/STM32CubeF0
+```
 
 

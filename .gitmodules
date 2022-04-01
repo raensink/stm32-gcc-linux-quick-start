@@ -1,0 +1,3 @@
+[submodule "mcu/STM32CubeF0"]
+	path = mcu/STM32CubeF0
+	url = https://github.com/STMicroelectronics/STM32CubeF0.git

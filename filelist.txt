@@ -1,20 +1,41 @@
 
 
 ================================================================================================#=
-stm-fun/stm32-gcc-linux-quick-start/filelist.txt
+stm32-gcc-linux-quick-start/filelist.txt
 ================================================================================================#=
 stm32-gcc-linux-quick-start/LICENSE
 stm32-gcc-linux-quick-start/README.md
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-stm-fun/stm32-gcc-linux-quick-start/apps/button-blinky-it
+stm32-gcc-linux-quick-start/apps/button-blinky-it
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 apps/button-blinky-it/README.md
 apps/button-blinky-it/main.c
-apps/button-blinky-it/Makefile.c
+apps/button-blinky-it/Makefile
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+stm32-gcc-linux-quick-start/mcu
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+mcu/README.md
+
+mcu/vtor
+mcu/vtor/README.md
+mcu/vtor/reset-handler-cm0-default.s
 
 
 
+
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|@
+\\wsl$\Ubuntu\home\rae\stm-fun\stm32-gcc-linux-quick-start\mcu
+vtor
+linker-script
+
+mcu
+mcu/README.md
+mcu/linker-script
+mcu/linker-script/STM32F0-GCC-STM32F091RCTx_FLASH.ld
+mcu/linker-script/README.md
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|@

@@ -1,23 +1,22 @@
 
 # ======================================================================================#=
 # MAKEFILE
-# apps/blinky-f0/Makefile
+# apps/button-blinky-it/Makefile
 #
 # SPDX-License-Identifier: MIT-0
 # ======================================================================================#=
 
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 # SOURCE FILES
 # INCLUDE DIRECTORIES
-# Identify the source files and include paths.
+# Here we identify the source files and include paths.
 # All file paths are relative to the project root directory.
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 
 # ------------------------------------------------------+-
 # Application
 # ------------------------------------------------------+-
-SRC_FILES  = apps/blinky-f0/main.c
+SRC_FILES  = apps/button-blinky-it/main.c
 
 # ------------------------------------------------------+-
 # MCU: STM32CubeF0
@@ -36,7 +35,6 @@ SRC_FILES += mcu/STM32CubeF0/Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_ll_utils
 
 
 # CMSIS Exception Handlers
-SRC_FILES += mcu/stm32f0/vtor/reset-handler.s
 SRC_FILES += mcu/stm32f0/vtor/vector-table.s
 
 # CMSIS Startup Init and Dependencies
@@ -50,8 +48,12 @@ SRC_FILES += mcu/stm32f0/core/clock.c
 # None for this application;
 
 # ----------------------------------------------------------------------+-
+# MCU
+# ----------------------------------------------------------------------+-
+SRC_FILES += mcu/vtor/reset-handler-cm0-default.s
+
+# ----------------------------------------------------------------------+-
 # Linker Script
-# Path to the linker script file for building this executable.
 # ----------------------------------------------------------------------+-
 LINKER_SCRIPT = mcu/linker-script/STM32F0-GCC-STM32F091RCTx_FLASH.ld
 
