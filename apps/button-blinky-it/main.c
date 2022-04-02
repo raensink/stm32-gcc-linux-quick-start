@@ -6,14 +6,14 @@ apps/button-blinky-it/main.c
 
 This application will flash an LED at various rates.
 Pressing a button will change the rate at which it flashes.
-Four external LEDs can be connected for additional blinkiness and
-to support Software Trace Debugging.
+Four external LEDs can be connected for additional blinkiness
+and to support Software Trace Debugging.
 
 DEPENDENCIES:
-    Core services provided by this quick-start project.
-    MCU services provided by this quick-start project.
+    MCU & Core services provided by this quick-start project.
     STM32F0 HAL Low Level Drivers
-    This app is designed for the STM32F0 on a NUCLEO-F091RC board.
+    STM32F0
+    NUCLEO-F091RC target board
 
 SPDX-License-Identifier: MIT-0
 ================================================================================================#=
@@ -25,15 +25,13 @@ SPDX-License-Identifier: MIT-0
 #include "mcu/clock/clock-tree-default-config.h"
 
 
-// TODO: remove unnecessary includes
 #include "CMSIS/Device/ST/STM32F0xx/Include/stm32f091xc.h"
 
+// STM32 Low Level Drivers
 #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_bus.h"
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_system.h"
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_rcc.h"
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_gpio.h"
 #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_exti.h"
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_utils.h"
+#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_gpio.h"
+#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_system.h"
 
 
 // =============================================================================================#=
@@ -41,70 +39,10 @@ SPDX-License-Identifier: MIT-0
 // =============================================================================================#=
 
 // -----------------------------------------------------+-
-// volatile because this is changed by the button ISR.
+// Defines how long to wait between blinkies;
+// Volatile because this is changed by the button ISR.
 // -----------------------------------------------------+-
 static volatile int32_t  Blinky_Delay = 0x000FFFFF;
-
-#if 0
-// -----------------------------------------------------+-
-// Frequency of the HCLK in Hz;
-// Set by the clock configuration code;
-// -----------------------------------------------------+-
-static uint32_t HCLK_Frequency_Hz;
-
-// -----------------------------------------------------+-
-// Frequency of the APB1 PCLK1 in Hz;
-// Set by the clock configuration code;
-// -----------------------------------------------------+-
-// static uint32_t PCLK1_Frequency_Hz;
-
-// -----------------------------------------------------+-
-// Frequency of the SysTick Timer in ticks-per-second;
-// Set by the clock configuration code;
-// -----------------------------------------------------+-
-static uint32_t TicksPerSecond;
-
-
-
-// -----------------------------------------------------------------------------+-
-// System Clock Configuration
-// -----------------------------------------------------------------------------+-
-static void system_clock_config(void)
-{
-    // @@@ Someday move this to mcu/core/FLASH @@@
-    LL_FLASH_SetLatency(LL_FLASH_LATENCY_1);
-
-    // Configure the PLL to (HSI / 2) * 12 = 48MHz.
-    // Use a PLLMUL of 0xA for *12, and keep PLLSRC at 0
-    // to use (HSI / PREDIV) as the core source. HSI = 8MHz.
-    RCC->CFGR  &= ~(RCC_CFGR_PLLMUL |
-                    RCC_CFGR_PLLSRC);
-    RCC->CFGR  |=  (RCC_CFGR_PLLSRC_HSI_DIV2 |
-                    RCC_CFGR_PLLMUL12);
-    // Turn the PLL on and wait for it to be ready.
-    RCC->CR    |=  (RCC_CR_PLLON);
-    while (!(RCC->CR & RCC_CR_PLLRDY)) {};
-    // Select the PLL as the system clock source.
-    RCC->CFGR  &= ~(RCC_CFGR_SW);
-    RCC->CFGR  |=  (RCC_CFGR_SW_PLL);
-    while (!(RCC->CFGR & RCC_CFGR_SWS_PLL)) {};
-
-    // Set the global clock frequency variable.
-    HCLK_Frequency_Hz = 48000000;
-
-    // Configure the Cortex-M SysTick source for 1000 ticks per second given the HCLK frequency;
-    // Sets RELOAD register value to (HCLKFrequency / TicksPerSecond) - 1;
-    // Clears the counter value;
-    // Sets CSR:Clock source to use processor clock rather than external clock;
-    // Leaves CSR:TickInt unchanged (zero?) so assume no SysTick exception? But then why set it?
-    // Sets CSR:Enable to enable the counter
-    // TicksPerSecond = 1000U;
-    LL_InitTick(HCLK_Frequency_Hz, TicksPerSecond);
-
-    // Set the CMSIS SystemCoreClock variable to record the freq of the HCLK;
-    LL_SetSystemCoreClock(HCLK_Frequency_Hz);
-};
-#endif
 
 
 // =============================================================================================#=
@@ -224,6 +162,10 @@ int main(void)
 {
     // Initialize Clock Tree and SysTick at startup;
     mcu_clock_tree_default_config();
+
+    // TODO:
+    // Explain what's going on here.
+    LL_FLASH_SetLatency(LL_FLASH_LATENCY_1);
 
     // Configure Microcontroller Clock Output
     mcu_clock_mco_config();

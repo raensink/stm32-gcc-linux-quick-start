@@ -4,9 +4,12 @@
 CLOCK TREE DEFAULT CONFIG
 mcu/clock/clock-tree-default-config-stm32f0.c
 
+Provides a default configuration service for clock tree,
+including the Cortex-M System Timer (SysTick).
+
 DEPENDENCIES:
-    STM32 Cube HAL Low Level Drivers
-    This app is intended for the STM32F0.
+    STM32 Cube HAL Low Level Drivers;
+    STM32F0 MCU;
 
 SPDX-License-Identifier: MIT-0
 ================================================================================================#=
@@ -17,7 +20,6 @@ SPDX-License-Identifier: MIT-0
 #include "CMSIS/Device/ST/STM32F0xx/Include/stm32f091xc.h"
 
 // STM32 Low Level Drivers
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_system.h"
 #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_rcc.h"
 #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_utils.h"
 
@@ -29,6 +31,7 @@ SPDX-License-Identifier: MIT-0
 // -----------------------------------------------------+-
 // Frequency of the HCLK in Hz;
 // Set by the clock tree configuration code below;
+// TODO: REFACTOR - move to cmsis-clock?
 // -----------------------------------------------------+-
 static uint32_t HCLK_Frequency_Hz;
 
@@ -36,6 +39,8 @@ static uint32_t HCLK_Frequency_Hz;
 // Frequency of the SysTick Timer in ticks-per-second;
 // Set by the clock tree configuration code below;
 // @@@ or is it really??? @@@
+// TODO: REFACTOR
+// TODO: REFACTOR - move to cmsis-clock?
 // -----------------------------------------------------+-
 static uint32_t TicksPerSecond;
 
@@ -50,10 +55,6 @@ static uint32_t TicksPerSecond;
 // -----------------------------------------------------------------------------+-
 void mcu_clock_tree_default_config(void)
 {
-    // TODO:
-    // @@@ Someday move this to mcu/core/FLASH @@@
-    LL_FLASH_SetLatency(LL_FLASH_LATENCY_1);
-
     // Configure the PLL to (HSI / 2) * 12 = 48MHz.
     // Use a PLLMUL of 0xA for *12, and keep PLLSRC at 0
     // to use (HSI / PREDIV) as the core source. HSI = 8MHz.
@@ -72,6 +73,8 @@ void mcu_clock_tree_default_config(void)
     // Set the global clock frequency variable.
     HCLK_Frequency_Hz = 48000000;
 
+    // ?????? TODO ??????
+    // What's going on here?
     // Configure the Cortex-M SysTick source for 1000 ticks per second given the HCLK frequency;
     // Sets RELOAD register value to (HCLKFrequency / TicksPerSecond) - 1;
     // Clears the counter value;
@@ -85,15 +88,3 @@ void mcu_clock_tree_default_config(void)
     LL_SetSystemCoreClock(HCLK_Frequency_Hz);
 };
 
-
-#if 0
-
-
-
-// -----------------------------------------------------+-
-// Frequency of the APB1 PCLK1 in Hz;
-// Set by the clock configuration code;
-// -----------------------------------------------------+-
-// static uint32_t PCLK1_Frequency_Hz;
-
-#endif

@@ -8,8 +8,11 @@ SPDX-License-Identifier: MIT-0
 ================================================================================================#=
 */
 
+#pragma once
+
+
 // -----------------------------------------------------------------------------+-
-// Clock Tree Default Configuration
+// Set Clock Tree Default Configuration
 // -----------------------------------------------------------------------------+-
 void mcu_clock_tree_default_config(void);
 
