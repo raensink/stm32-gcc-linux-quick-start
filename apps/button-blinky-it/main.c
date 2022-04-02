@@ -4,6 +4,11 @@
 MAIN
 apps/button-blinky-it/main.c
 
+This application will flash an LED at various rates.
+Pressing a button will change the rate at which it flashes.
+Four external LEDs can be connected for additional blinkiness and
+to support Software Trace Debugging.
+
 SPDX-License-Identifier: MIT-0
 ================================================================================================#=
 */
@@ -12,12 +17,12 @@ SPDX-License-Identifier: MIT-0
 
 #include "CMSIS/Device/ST/STM32F0xx/Include/stm32f091xc.h"
 
-// #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_bus.h"
-// #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_system.h"
-// #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_rcc.h"
-// #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_gpio.h"
-// #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_exti.h"
-// #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_utils.h"
+#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_bus.h"
+#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_system.h"
+#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_rcc.h"
+#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_gpio.h"
+#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_exti.h"
+#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_utils.h"
 
 
 // =============================================================================================#=
@@ -91,7 +96,7 @@ static void system_clock_config(void)
 };
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// Configure Microcoontroller Clock Output (MCO)
+// Configure Microcontroller Clock Output (MCO)
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 static void mco_config(void)
 {

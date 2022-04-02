@@ -9,48 +9,50 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 # SOURCE FILES
 # INCLUDE DIRECTORIES
-# Here we identify the source files and include paths.
+#
+# This application consists of the source files listed below.
+# We also list the include paths where the header file dependencies can be satisfied.
 # All file paths are relative to the project root directory.
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 
-# ------------------------------------------------------+-
+# ----------------------------------------------------------------------+-
 # Application
-# ------------------------------------------------------+-
+# ----------------------------------------------------------------------+-
 SRC_FILES  = apps/button-blinky-it/main.c
 
-# ------------------------------------------------------+-
-# MCU: STM32CubeF0
-# CMSIS Core, Low Level Drivers, and other device specifics
-# Note: some of the #includes in the CMSIS source files
+# ----------------------------------------------------------------------+-
+# STM32Cube Low Level Drivers for the F0.
+#
+# Note: some of the #includes in the Cube CMSIS source files
 # require the more specific paths shown below.
-# ------------------------------------------------------+-
+# ----------------------------------------------------------------------+-
+SRC_FILES += mcu/STM32CubeF0/Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_ll_utils.c
 INC_DIRS  += mcu/STM32CubeF0/Drivers
 INC_DIRS  += mcu/STM32CubeF0/Drivers/CMSIS/Core/Include
 INC_DIRS  += mcu/STM32CubeF0/Drivers/CMSIS/Device/ST/STM32F0xx/Include
 INC_DIRS  += mcu/STM32CubeF0/Drivers/STM32F0xx_HAL_Driver/Inc
 
-
-# STM32 HAL Low Level Drivers
-SRC_FILES += mcu/STM32CubeF0/Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_ll_utils.c
-
-
-# CMSIS Exception Handlers
-SRC_FILES += mcu/stm32f0/vtor/vector-table.s
-
-# CMSIS Startup Init and Dependencies
-INC_DIRS  += mcu/stm32f0/
-SRC_FILES += mcu/stm32f0/core/scb.c
-SRC_FILES += mcu/stm32f0/core/clock.c
-
-# ------------------------------------------------------+-
+# ----------------------------------------------------------------------+-
 # Platform
-# ------------------------------------------------------+-
-# None for this application;
+# ----------------------------------------------------------------------+-
+# None required for this application;
+
+# ----------------------------------------------------------------------+-
+# Core
+# ----------------------------------------------------------------------+-
+# None required for this application;
 
 # ----------------------------------------------------------------------+-
 # MCU
+# CMSIS Startup Init and Dependencies
 # ----------------------------------------------------------------------+-
+SRC_FILES += mcu/clock/cmsis-clock.c
 SRC_FILES += mcu/vtor/reset-handler-cm0-default.s
+SRC_FILES += mcu/vtor/vector-table.s
+
+### ### SRC_FILES += mcu/stm32f0/core/scb.c
+### ### SRC_FILES += mcu/stm32f0/core/clock.c
+
 
 # ----------------------------------------------------------------------+-
 # Linker Script

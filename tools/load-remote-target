@@ -1,0 +1,212 @@
+#!/usr/bin/env python3
+
+# ==============================================================================================#=
+# load_remote_target
+#
+# SPDX-License-Identifier: MIT-0
+# ==============================================================================================#=
+import sys
+import os
+import subprocess
+from   datetime import datetime
+from   enum import Enum, auto
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# Help
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+def usage():
+    print('''\
+
+NAME
+    load_remote_target  - Load a binary image onto a target using a remote host.
+
+SYNOPSIS
+    load_remote_target --appl appl_name
+
+DESCRIPTION
+    Load a given application binary to the target device.
+    Assumes the target device is connected to a remote host.
+    This script uses ssh to access the remote host.
+    The remote host is specified to ssh by a DTA_HOST environment variable.
+    This script assumes:
+        the user has access to the remote host through an ssh key.
+        the binary to be loaded exists already on the remote host in /tmp.
+
+OPTIONS
+    -a, --appl  Basename of the application binary to be loaded. (Required)
+    -h, --help  Show this usage.
+
+''')
+
+
+# ==============================================================================#=
+# Main
+# ==============================================================================#=
+def main():
+    global arg0
+    arg0 = sys.argv[0]
+    args = get_arguments(sys.argv[1:])
+
+    if ArgName.Help in args:
+        usage()
+        sys.exit(0)
+
+    if not valid_arguments(args):
+        sys.exit(1)
+
+    if not valid_env():
+        sys.exit(1)
+
+    binary_file_name = args[ArgName.Appl] + '.bin'
+    if not verify_remote_binary(binary_file_name):
+        sys.exit(1)
+
+    if not load_remote_target(binary_file_name):
+        sys.exit(1)
+
+    print( 'Target has been loaded.' )
+    print( '' )
+    sys.exit(0)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# Parse and validate command line arguments.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+class ArgName(Enum):
+    Help  = auto()
+    Appl  = auto()
+    Error = auto()
+
+def get_arguments( arg_list ):
+
+    args={} # return args as a dict.
+
+    # For each argument...
+    while arg_list:
+        if arg_list[0] in ('-h', '--help'):
+            args[ArgName.Help] = True
+            del arg_list[0]
+
+        elif arg_list[0] in ('-a', '--appl'):
+            args[ArgName.Appl] = None
+            del arg_list[0]
+            if arg_list:
+                args[ArgName.Appl] = arg_list[0]
+                del arg_list[0]
+
+        else:
+            args[ArgName.Error] = arg_list[0]
+            break
+
+    return args
+
+def valid_arguments( arg_dict ):
+    if ArgName.Error in arg_dict:
+        print( f"{arg0}: \"{arg_dict[ArgName.Error]}\" is not a valid option. See {arg0} --help.\n")
+        return False
+
+    if ArgName.Appl in arg_dict:
+        if arg_dict[ArgName.Appl] is None:
+            print( f"{arg0}: \"--appl Basename\" is required. See {arg0} --help.\n")
+            return False
+    else:
+        print( f"{arg0}: \"--appl\" option is required. See {arg0} --help.\n")
+        return False
+
+    return True
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# Validate environment vars
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+DTA_HOST=''
+
+def valid_env():
+    global DTA_HOST
+    dta  = os.getenv('DTA_HOST')
+
+    if dta is None:
+        arg0 = sys.argv[0]
+        print( f"{arg0}: \"DTA_HOST\" environment var must be set. See {arg0} --help.\n")
+        return False
+
+    else:
+        DTA_HOST=dta
+        return True
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# remote command helper
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+def run_remote_command(given_command_string):
+
+    command_list = f"ssh {DTA_HOST} ".split() + given_command_string.split()
+
+    completed_process = subprocess.run(
+        command_list, capture_output=True, text=True,
+    )
+
+    if completed_process.returncode == 255:
+        print( '' )
+        print( f"{arg0}: ssh to remote host failed: {' '.join(command_list)}" )
+        print( completed_process.stderr )
+        print( '' )
+
+    if completed_process.returncode != 0:
+        print( '' )
+        print( f"{arg0}: command failed on remote: {given_command_string}" )
+        print( completed_process.stderr )
+        print( '' )
+
+    return completed_process
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# Verify application binary file on remote host.
+# Assumes DTA_HOST has been set.
+# Print name and last modified timestamp of binary.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+def verify_remote_binary(filename):
+
+    command = 'date "+%Y-%m-%d %H:%M:%S" -r /tmp/' + filename
+
+    completed_command = run_remote_command(command)
+    if completed_command.returncode != 0:
+        return False
+
+    modification_time_str = completed_command.stdout.rstrip()
+    modification_time = datetime.strptime(modification_time_str, '%Y-%m-%d %H:%M:%S')
+    minutes_ago = (datetime.now()-modification_time).total_seconds() / 60
+
+    print( '' )
+    print( f"Using binary file: {filename} - last modified {modification_time_str}, {int(minutes_ago)} minutes ago." )
+    return True
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# Use Open On-Chip Debugger to load target.
+# TODO: parameterize:
+#     the config file (MCU & board specific)
+#     the address and other commands.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+def load_remote_target(given_filename):
+
+    ### config_file_path =  '/usr/share/openocd/scripts/board/st_nucleo_l476rg.cfg'
+    config_file_path =  '/usr/share/openocd/scripts/board/st_nucleo_f0.cfg'
+
+    openocd_command  = f'"program /tmp/{given_filename} reset exit 0x08000000"'
+    remote_command   = f'openocd --file {config_file_path}  --command {openocd_command} '
+
+    completed_command = run_remote_command(remote_command)
+    if completed_command.returncode != 0:
+        return False
+
+    print( '' )
+    print( f"Success: {remote_command} " )
+    return True
+
+
+# ==============================================================================#=
+# Check for main scope and run main if so.
+# ==============================================================================#=
+if __name__ == "__main__":
+    main()
+

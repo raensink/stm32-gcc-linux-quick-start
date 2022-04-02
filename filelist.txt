@@ -21,6 +21,12 @@ mcu/README.md
 mcu/vtor
 mcu/vtor/README.md
 mcu/vtor/reset-handler-cm0-default.s
+mcu/vtor/vector-table.s
+
+mcu/clock/README.md
+mcu/clock/cmsis-clock.h
+mcu/clock/cmsis-clock.c
+
 
 mcu/STM32CubeF0
 
