@@ -18,7 +18,8 @@ It's purpose is to:
 The vector table is a list of addresses, one for each exception handler function.
 The meaning of each position within the table is hardware specific
 and corresponds to a specific exception that will be raised by the mcu hardware.
-The position and name of each exception handler is standardized by ARM and the silicon vendor.
+The position and name of each exception handler is standardized by ARM and the silicon vendor,
+in this case: ST Micro.
 
 The only exception to this (no pun intended) is the very first entry.
 The first entry is used as the initial value of the stack pointer.
@@ -38,5 +39,6 @@ In a production system, this approach for the default handler would be OK only w
 a watchdog timer is present to alert and recover the system when the default it called.
 
 This vector table is based on the following file from the STM32Cube MCU package:
-    Drivers/CMSIS/Device/ST/STM32F0xx/Source/Templates/gcc/startup_stm32f091xc.s
+* Drivers/CMSIS/Device/ST/STM32F0xx/Source/Templates/gcc/startup_stm32f091xc.s
+
 

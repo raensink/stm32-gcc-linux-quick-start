@@ -3,6 +3,8 @@
 # MAKEFILE
 # apps/button-blinky-it/Makefile
 #
+# Builds the blinky app for the STM32F0 on a NUCLEO-F091RC board.
+#
 # SPDX-License-Identifier: MIT-0
 # ======================================================================================#=
 
@@ -47,7 +49,10 @@ INC_DIRS  += mcu/STM32CubeF0/Drivers/STM32F0xx_HAL_Driver/Inc
 # CMSIS Startup Init and Dependencies
 # ----------------------------------------------------------------------+-
 SRC_FILES += mcu/clock/cmsis-clock.c
-SRC_FILES += mcu/vtor/reset-handler-cm0-default.s
+SRC_FILES += mcu/clock/clock-tree-default-config-stm32f0.c
+SRC_FILES += mcu/clock/mco-stm32f0.c
+
+SRC_FILES += mcu/vtor/reset-handler-default-cm0.s
 SRC_FILES += mcu/vtor/vector-table-gcc-stm32f091xc.s
 
 ### TODO? SRC_FILES += mcu/stm32f0/core/scb.c

@@ -9,12 +9,23 @@ Pressing a button will change the rate at which it flashes.
 Four external LEDs can be connected for additional blinkiness and
 to support Software Trace Debugging.
 
+DEPENDENCIES:
+    Core services provided by this quick-start project.
+    MCU services provided by this quick-start project.
+    STM32F0 HAL Low Level Drivers
+    This app is designed for the STM32F0 on a NUCLEO-F091RC board.
+
 SPDX-License-Identifier: MIT-0
 ================================================================================================#=
 */
 
 #include <stdint.h>
 
+#include "mcu/clock/mco.h"
+#include "mcu/clock/clock-tree-default-config.h"
+
+
+// TODO: remove unnecessary includes
 #include "CMSIS/Device/ST/STM32F0xx/Include/stm32f091xc.h"
 
 #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_bus.h"
@@ -29,6 +40,12 @@ SPDX-License-Identifier: MIT-0
 // Private Internal Types and Data
 // =============================================================================================#=
 
+// -----------------------------------------------------+-
+// volatile because this is changed by the button ISR.
+// -----------------------------------------------------+-
+static volatile int32_t  Blinky_Delay = 0x000FFFFF;
+
+#if 0
 // -----------------------------------------------------+-
 // Frequency of the HCLK in Hz;
 // Set by the clock configuration code;
@@ -47,14 +64,7 @@ static uint32_t HCLK_Frequency_Hz;
 // -----------------------------------------------------+-
 static uint32_t TicksPerSecond;
 
-// -----------------------------------------------------+-
-// -----------------------------------------------------+-
-static volatile int32_t  Blinky_Delay = 0x000FFFFF;
 
-
-// =============================================================================================#=
-// Private Internal Helper Functions
-// =============================================================================================#=
 
 // -----------------------------------------------------------------------------+-
 // System Clock Configuration
@@ -94,35 +104,12 @@ static void system_clock_config(void)
     // Set the CMSIS SystemCoreClock variable to record the freq of the HCLK;
     LL_SetSystemCoreClock(HCLK_Frequency_Hz);
 };
+#endif
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// Configure Microcontroller Clock Output (MCO)
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-static void mco_config(void)
-{
-    // Configure GPIO PIN
-    //
-    // Based on Table 16 on page 84 of the STM32L476xx Data Sheet, we know that the MCO is on PIN PA8.
-    // Enable the peripheral bus clock to the GPIOA peripheral which is on the AHB2 bus
-    // and configure the pin accordingly for MCO.
-    LL_AHB1_GRP1_EnableClock( LL_AHB1_GRP1_PERIPH_GPIOA);
-    LL_GPIO_SetPinMode(       GPIOA, LL_GPIO_PIN_8, LL_GPIO_MODE_ALTERNATE);
-    LL_GPIO_SetAFPin_8_15(    GPIOA, LL_GPIO_PIN_8, LL_GPIO_AF_0);
-    LL_GPIO_SetPinOutputType( GPIOA, LL_GPIO_PIN_8, LL_GPIO_OUTPUT_PUSHPULL);
-    LL_GPIO_SetPinPull(       GPIOA, LL_GPIO_PIN_8, LL_GPIO_PULL_NO);
-    LL_GPIO_SetPinSpeed(      GPIOA, LL_GPIO_PIN_8, LL_GPIO_SPEED_FREQ_HIGH);
 
-    // Configure the MCO source selection and divider.
-    // Note: use the MCO prescaler divider as needed to ensure that
-    // the output signal can by your Saleae or other instrument.
-    LL_RCC_ConfigMCO(LL_RCC_MCO1SOURCE_SYSCLK, LL_RCC_MCO1_DIV_8);
-
-    // Some handy MCO alternative configurations:
-    // LL_RCC_ConfigMCO( LL_RCC_MCO1SOURCE_MSI, LL_RCC_MCO1_DIV_1);
-    // LL_RCC_ConfigMCO( LL_RCC_MCO1SOURCE_PLLCLK, LL_RCC_MCO1_DIV_1);
-    // LL_RCC_ConfigMCO(LL_RCC_MCO1SOURCE_SYSCLK, LL_RCC_MCO1_DIV_8);
-};
-
+// =============================================================================================#=
+// Private Internal Helper Functions
+// =============================================================================================#=
 
 // -----------------------------------------------------------------------------+-
 // -----------------------------------------------------------------------------+-
@@ -172,7 +159,7 @@ static void init_led_gpio(void)
 
 // -----------------------------------------------------------------------------+-
 // -----------------------------------------------------------------------------+-
-static void user_button_init(void)
+static void user_button_config(void)
 {
     // -----------------------------------------------------------------------------+-
     // GPIO PC13;
@@ -229,23 +216,21 @@ void EXTI4_15_IRQHandler(void) {
     }
 }
 
+
 // =============================================================================================#=
+// MAIN
 // =============================================================================================#=
 int main(void)
 {
     // Initialize Clock Tree and SysTick at startup;
-    system_clock_config();
+    mcu_clock_tree_default_config();
 
-    // Configure Microcontroller Clock Output (MCO)
-    // The MCO is on PA8 which,
-    // according to Figure 24 on page 35 of UM1724 STM32 Nucleo-64 Boards User Manual,
-    // is available on CN10 Pin #23
-    mco_config();
+    // Configure Microcontroller Clock Output
+    mcu_clock_mco_config();
 
-    // Initialize GPIO peripherals for LEDs;
+    // Application specific init.
     init_led_gpio();
-
-    user_button_init();
+    user_button_config();
 
     // Forever toggle some LEDs...
     while (1)
@@ -254,6 +239,7 @@ int main(void)
         LL_GPIO_TogglePin(GPIOC, LL_GPIO_PIN_2); // Blue LED
 
         // Busy wait to delay;
+        // Duration can vary depending on 
         for( uint32_t i=0; i<Blinky_Delay; i++) {}
     }
 }
