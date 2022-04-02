@@ -4,12 +4,27 @@
 Reset Handler
 
 This is a project-specific version of the CMSIS Reset_Handler function.
+This handler is invoked by the processor hardware in response to a Reset System Exception.
+The purpose of the reset handler is to:
+* Put the processor hardware into a known predictable working state.
+* Perform the C Language Startup Initialization.
+* Call the application's main function.
+
+Details:
+* Set Stack Pointer (is this necessary? I thought the hardware did this?)
+* Copy initialized data to RAM.
+* Zero-Fill the BSS Section.
+* Call libc init.
+* Call the application main().
+* Loop forever just in case.
+
 According to the CMSIS documentation, the CMSIS startup file may require application specific
 adaptations and therefore should be copied into the application project folder.
-We have done this, in part, by refactoring the Reset_Handler and putting it into its own source file here.
+That is exactly what we have done here, at least in part.
 
 This reset handler is based on the startup file from the STM32Cube MCU Packages:
     STM32CubeF0/Drivers/CMSIS/Device/ST/STM32F0xx/Source/Templates/gcc/startup_stm32f091xc.s
+
 
 DEPENDENCIES:
     This code assumes the following symbols have been defined in the linker script:
@@ -45,6 +60,8 @@ C Run-Time
 
 Main:
     Upon completion, the reset handler will call the application "main".
+
+SPDX-License-Identifier: MIT-0
 ================================================================================================*=
 */
         .syntax  unified     @ Use the unified (ARM & THUMB) assembler syntax (ARM Dependent)
@@ -141,7 +158,7 @@ LoopFillZerobss:
         @ @@@ bl      MCUCORE_VTOR_SetVectorTableLocation(void)
 
         /* Call static constructors */
-        bl      __libc_init_array
+        bl   __libc_init_array
 
         /*
         --------------------------------------------------------------------------------+-
@@ -152,18 +169,20 @@ LoopFillZerobss:
         from the perspective of the C Language Standard.
         --------------------------------------------------------------------------------+-
         */
-        bl      main              @ Call the application entry point. Appears to be no setup for argc and argv.
+        bl   main    @ Call the application entry point. Appears to be no setup for argc and argv.
 
         /*
         --------------------------------------------------------------------------------+-
-        Loop Forever Just In Case Main Returns
+        Loop Forever
+        Just in case main returns.
 
-        This is fine if we have configured a watchdog timer.
-        Otherwise we should take some action here to alert and recover the system.
+        This approach is fine if we have configured a watchdog timer.
+        Otherwise it would be better to take some action here
+        to alert and recover the system.
         --------------------------------------------------------------------------------+-
         */
 LoopForever:
-        b       LoopForever       @ just in case main returns.
+        b    LoopForever
 
 .size   Reset_Handler, . - Reset_Handler
 

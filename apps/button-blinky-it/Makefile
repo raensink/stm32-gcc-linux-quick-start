@@ -48,10 +48,10 @@ INC_DIRS  += mcu/STM32CubeF0/Drivers/STM32F0xx_HAL_Driver/Inc
 # ----------------------------------------------------------------------+-
 SRC_FILES += mcu/clock/cmsis-clock.c
 SRC_FILES += mcu/vtor/reset-handler-cm0-default.s
-SRC_FILES += mcu/vtor/vector-table.s
+SRC_FILES += mcu/vtor/vector-table-gcc-stm32f091xc.s
 
-### ### SRC_FILES += mcu/stm32f0/core/scb.c
-### ### SRC_FILES += mcu/stm32f0/core/clock.c
+### TODO? SRC_FILES += mcu/stm32f0/core/scb.c
+### TODO? SRC_FILES += mcu/stm32f0/core/clock.c
 
 
 # ----------------------------------------------------------------------+-

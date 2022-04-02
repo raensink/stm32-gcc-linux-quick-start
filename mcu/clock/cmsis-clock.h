@@ -5,6 +5,8 @@ CMSIS Clock
 
 The purpose of this module is to satisfy a small number
 of clock-related dependencies that are provided by standard CMSIS code.
+
+SPDX-License-Identifier: MIT-0
 ================================================================================================#=
 */
 

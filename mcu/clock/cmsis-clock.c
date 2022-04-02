@@ -17,6 +17,8 @@ This module is based on the following files from the various STM32Cube MCU packa
 
     Drivers/CMSIS/Device/ST/STM32F0xx/Source/Templates/system_stm32f0xx.c
     Drivers/CMSIS/Device/ST/STM32L4xx/Source/Templates/system_stm32l4xx.c
+
+SPDX-License-Identifier: MIT-0
 ================================================================================================#=
 */
 
