@@ -39,7 +39,7 @@ void SystemCoreClock_record_global_hclk_freq(uint32_t freq_in_hz);
 //
 // TODO: not yet implemented;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-uint32_t SystemCoreClock_get_hclk_freq(void);
+// uint32_t SystemCoreClock_get_hclk_freq(void);
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
@@ -47,13 +47,13 @@ uint32_t SystemCoreClock_get_hclk_freq(void);
 // that the Cortex-M System Timer (SysTick) has been configured for.
 // TODO: not yet implemented;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-void SysTick_record_ticks_per_second(uint32_t ticks_per_second);
+// void SysTick_record_ticks_per_second(uint32_t ticks_per_second);
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // Get the SysTick HCLK frequency as recorded in the global SystemCoreClock variable.
 // Returns frequence in HZ.
 // TODO: not yet implemented;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-uint32 SysTick_get_ticks_per_second(void);
+// uint32_t SysTick_get_ticks_per_second(void);
 
 
