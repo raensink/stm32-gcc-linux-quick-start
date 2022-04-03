@@ -16,8 +16,14 @@ apps/button-blinky-it/Makefile
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 stm32-gcc-linux-quick-start/mcu
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-mcu/README.md
 
+core/README.md
+core/swtrace
+core/swtrace/README.md
+core/swtrace/swtrace-led.h
+core/swtrace/swtrace-led.c
+
+mcu/README.md
 mcu/vtor
 mcu/vtor/README.md
 mcu/vtor/reset-handler-cm0-default.s
