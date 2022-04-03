@@ -160,12 +160,12 @@ void EXTI4_15_IRQHandler(void) {
 // =============================================================================================#=
 int main(void)
 {
+    // TODO: Someday explain what's going on here.
+    // Refactor? Move?
+    LL_FLASH_SetLatency(LL_FLASH_LATENCY_1);
+
     // Initialize Clock Tree and SysTick at startup;
     mcu_clock_tree_default_config();
-
-    // TODO:
-    // Explain what's going on here.
-    LL_FLASH_SetLatency(LL_FLASH_LATENCY_1);
 
     // Configure Microcontroller Clock Output
     mcu_clock_mco_config();
