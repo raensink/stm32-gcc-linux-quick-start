@@ -44,29 +44,16 @@ mcu/clock/clock-tree-default-config-stm32f0.c
 mcu/clock/mco.h
 mcu/clock/mco-stm32f0.c
 
-
 mcu/STM32CubeF0
+mcu/STM32CubeL4
 
 
+================================================================================================#=
+STM32L476-Nucleo-64/
+================================================================================================#=
 
+STM32L476-Nucleo-64/filelist.txt
+STM32L476-Nucleo-64/mcu
+STM32L476-Nucleo-64/mcu/README.md
 
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|@
-\\wsl$\Ubuntu\home\rae\stm-fun\stm32-gcc-linux-quick-start\mcu
-README.md
-vtor
-linker-script
-\\wsl$\Ubuntu\home\rae\stm-fun\stm32-gcc-linux-quick-start\mcu
-vtor
-linker-script
-
-mcu
-mcu/README.md
-mcu/linker-script
-mcu/linker-script/STM32F0-GCC-STM32F091RCTx_FLASH.ld
-mcu/linker-script/README.md
-
-
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|@
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-------------------------------------------------------------------------------------------------+-
 
