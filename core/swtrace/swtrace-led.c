@@ -24,7 +24,7 @@ void SW_Trace_External_LED_Init(void)
 {
     // -------------------------------------------------------------+-
     // Enable the clock to the GPIO peripheral;
-    // ToDo: abstract this and make it part of the mapping;
+    // ToDo: abstract this and make it part of the mapping?
     // -------------------------------------------------------------+-
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
 
@@ -65,7 +65,10 @@ void SW_Trace_External_LED_Init(void)
 
 void SW_Trace_OnBoard_LED_Init(void)
 {
+    // -------------------------------------------------------------+-
     // Enable AHB2 Clock to GPIO Port A in the Reset and Clock Control peripheral;
+    // ToDo: abstract this and make it part of the mapping?
+    // -------------------------------------------------------------+-
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
 
     // Configure pin for output push-pull mode to drive the LED.

@@ -27,11 +27,15 @@ as they create and maintain the project source code.
 When the line names are chosen well, they will convey the semantic information
 that a developer needs to work efficiently without having to constantly reference the schematic.
 
+Note: The focus of this mapping is on the MCU pins and peripherals.
+Changing this mapping to a different pin or peripheral could have impacts well beyond
+just the pin number and peripheral. Those impacts may require additional code and/or
+some conditional compilation based on the board type.
 
 DEPENDENCIES:
-Definitions from the STM32 Low Level Driver
-UM1724 STM32 Nucleo-64 Boards User Manual (MB1136)
-NUCLEO-F091RC target board
+* Definitions from the STM32 Low Level Driver
+* UM1724 STM32 Nucleo-64 Boards User Manual (MB1136)
+* NUCLEO-F091RC target board
 
 SPDX-License-Identifier: MIT-0
 ================================================================================================#=
@@ -56,11 +60,11 @@ SPDX-License-Identifier: MIT-0
 // <schematic_line_name>_PERIPH
 //     the internal MCU peripheral that services the pin;
 //
-// Note: since we don't have a schematic for
-// the NUCLEO board, we invent our own meaningful line names.
+// Note: since we don't have a schematic for the NUCLEO board,
+// we invent our own meaningful line names.
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 
-// -----------------------------------------------------------------------------+-
+// -------------------------------------------------------------+-
 // Software Debug External Off-Board LEDs.
 //
 // We choose to use these GPIOs: PC0, PC1, PC2, PC3;
@@ -68,7 +72,7 @@ SPDX-License-Identifier: MIT-0
 // We know from the UM1724 user manual,
 // that PC0-3 are connected to CN7 Morpho Connector pins 35-38;
 // See Figure 13 on page 29 and Table 32 on page 61;
-// -----------------------------------------------------------------------------+-
+// -------------------------------------------------------------+-
 #define  SW_DEBUG_EXTERNAL_RED_LED_PERIPH     GPIOC
 #define  SW_DEBUG_EXTERNAL_RED_LED_PIN        LL_GPIO_PIN_0
 
@@ -82,7 +86,7 @@ SPDX-License-Identifier: MIT-0
 #define  SW_DEBUG_EXTERNAL_YELLOW_LED_PIN     LL_GPIO_PIN_3
 
 
-// -----------------------------------------------------------------------------+-
+// -------------------------------------------------------------+-
 // Software Debug On-Board Green LED.
 //
 // We choose to use the On-Board Green User LED (LD2).
@@ -94,8 +98,21 @@ SPDX-License-Identifier: MIT-0
 //
 // See also Figure 13 on page 29 and Table 11 on page 38;
 // Pin D13 is available on Arduino CN5 Digital pin 6.
-// -----------------------------------------------------------------------------+-
+// -------------------------------------------------------------+-
 #define  SW_DEBUG_EXTERNAL_OnBrdGreen_LED_PERIPH    GPIOA
 #define  SW_DEBUG_EXTERNAL_OnBrdGreen_LED_PIN       LL_GPIO_PIN_5
+
+
+// -----------------------------------------------------------------------------+-
+// On-Board User Button (B1)
+//
+// We choose to use the on-board B1 User Button.
+// See Figure 3 on page 13 of the UM1724 user manual.
+//
+// We know from Section 6.5 on page 23,
+// that the B1 user button is connected PC13;
+// -----------------------------------------------------------------------------+-
+#define  ON_BOARD_USER_BUTTON_PERIPH   GPIOC
+#define  ON_BOARD_USER_BUTTON_PIN      LL_GPIO_PIN_13
 
 

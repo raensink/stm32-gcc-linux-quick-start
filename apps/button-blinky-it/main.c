@@ -10,10 +10,13 @@ Four external LEDs can be connected for additional blinkiness
 and to support Software Trace for debugging.
 
 DEPENDENCIES:
-    MCU & Core services provided by this quick-start project.
-    STM32F0 HAL Low Level Drivers
-    NUCLEO-F091RC target board and STM32F0 MCU
-    Four external LEDs for software trace blinkiness.
+* MCU & Core services provided by this quick-start project.
+* STM32F0 HAL Low Level Drivers
+* RM0091 STM32F0 Reference Manual
+* STM32F0 MCU
+* NUCLEO-F091RC target board
+* Four external LEDs for software trace blinkiness.
+* Analyzer/Scope to measure MCO clock output.
 
 SPDX-License-Identifier: MIT-0
 ================================================================================================#=
@@ -52,45 +55,61 @@ static volatile int32_t  Blinky_Delay = 0x0007FFFF;
 // =============================================================================================#=
 
 // -----------------------------------------------------------------------------+-
+// User Button Configuration
 // -----------------------------------------------------------------------------+-
 static void user_button_config(void)
 {
-    // -----------------------------------------------------------------------------+-
-    // GPIO PC13;
-    // On-Board User Button (B1)
-    //
-    // We know from the UM1724 STM32 Nucleo-64 Boards User Manual (MB1136)
-    // that the blud B1 user button is connected PC13;
-    // See Figure 3 on page 13, and Section 6.5 on page 23;
-    // -----------------------------------------------------------------------------+-
-
-    // Enable the GPIOC peripheral and configure the pin;
+    // -------------------------------------------------------------+-
+    // Enable the clock to the GPIO and SYSCFG peripheral;
+    // ToDo: abstract this and make it part of the mapping?
+    // -------------------------------------------------------------+-
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
-    LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_13, LL_GPIO_MODE_INPUT);
-    LL_GPIO_SetPinPull(GPIOC, LL_GPIO_PIN_13, LL_GPIO_PULL_NO);
-
-    // Connect PortC to External Line #13;
-    // In the RM0091 Ref Manual...
-    // See Section 9.1.5 on page 171;
-    // and Figure 24 on page 241;
     LL_APB1_GRP2_EnableClock(LL_APB1_GRP2_PERIPH_SYSCFG);
+
+    // -------------------------------------------------------------+-
+    // Configure the input pin;
+    // -------------------------------------------------------------+-
+    LL_GPIO_SetPinMode(
+        ON_BOARD_USER_BUTTON_PERIPH,
+        ON_BOARD_USER_BUTTON_PIN,
+        LL_GPIO_MODE_INPUT
+    );
+
+    LL_GPIO_SetPinPull(
+        ON_BOARD_USER_BUTTON_PERIPH,
+        ON_BOARD_USER_BUTTON_PIN,
+        LL_GPIO_PULL_NO
+    );
+
+    // -------------------------------------------------------------+-
+    // We choose to use the EXTI13 external interrupt line
+    // and we configure it's source input as the GPIOC peripheral.
+    //
+    // In the RM0091 Ref Manual...
+    // See Figure 24 on page 214 and See Section 9.1.5 on page 171.
+    // -------------------------------------------------------------+-
     LL_SYSCFG_SetEXTISource(LL_SYSCFG_EXTI_PORTC, LL_SYSCFG_EXTI_LINE13);
 
-    // Configure EXTI13 in the EXTI Peripheral;
-    // See 14.3.1 EXTI Block Diagram in the RM0351 Ref Manual;
-    // Enable a falling trigger External line 13 Interrupt
+    // -------------------------------------------------------------+-
+    // Enable the EXTI13 external interrupt line
+    // and configure it for a falling edge trigger.
+    // -------------------------------------------------------------+-
     LL_EXTI_EnableIT_0_31(LL_EXTI_LINE_13);
     LL_EXTI_EnableFallingTrig_0_31(LL_EXTI_LINE_13);
 
-    // Configure NVIC for USER_BUTTON_EXTI_IRQn
+    // -------------------------------------------------------------+-
+    // In the NVIC, EXTI lines 4 thru 15 are consolidated into
+    // and single interrupt vector: EXTI4_15.
+    // Enable this this IRQ and set it's priority.
+    // -------------------------------------------------------------+-
     NVIC_SetPriority(EXTI4_15_IRQn, 3);
     NVIC_EnableIRQ(EXTI4_15_IRQn);
 }
 
 // -----------------------------------------------------------------------------+-
-// On-Board User Button ISR
+// On-Board User Button Application Callback
 // -----------------------------------------------------------------------------+-
-static void UserButton_Callback(void)
+static void user_button_callback(void)
 {
     Blinky_Delay = Blinky_Delay - 0x00000FFFF;
     Trace_Red_Toggle();
@@ -101,12 +120,20 @@ static void UserButton_Callback(void)
     }
 }
 
+// =============================================================================================#=
+// Interrupt Request Handlers
+// =============================================================================================#=
 void EXTI4_15_IRQHandler(void) {
     // Check for the EXTI 13 pending interrupt flag in the pending register;
     if ((EXTI->PR & EXTI_PR_PIF13) == EXTI_PR_PIF13) {
-        // Clear pending interrupt flag by writing 1
+        // Clear pending interrupt flag by writing a 'one'.
         EXTI->PR |= EXTI_PR_PIF13;
-        UserButton_Callback();
+
+        user_button_callback();
+    }
+    else {
+        // We would not expect any other interrupts to be pending at this point
+        // because we have not configured any.
     }
 }
 
