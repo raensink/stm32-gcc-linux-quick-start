@@ -37,12 +37,8 @@ git submodule add  https://github.com/STMicroelectronics/STM32CubeF0.git  ./mcu/
 Submodule that references:
 [https://github.com/STMicroelectronics/STM32CubeL4](https://github.com/STMicroelectronics/STM32CubeL4)
 
-The size of this repository is beyond enormous!
-We need only a tiny fraction of the files contained therein.
-We do include, however, the entire repo as a submodule just so we can be more certain
-about referencing an officially released version of those few files we do care about.
-This is probably an interim solution until we create our own copy/fork of
-the official STM32CubeF0 repo where we can safely pare down the content to just what we need.
+As is the case with the F0 Cube, the size of this repository is also beyond enormous!
+And once again we need only a tiny fraction of the files contained therein.
 
 Here are the instructions for re-creating this submodule (if you must).
 These instructions assume you are using Linux.
