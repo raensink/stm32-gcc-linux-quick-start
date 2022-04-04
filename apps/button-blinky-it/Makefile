@@ -24,6 +24,18 @@ SRC_FILES  = apps/button-blinky-it/main.c
 INC_DIRS   = apps/button-blinky-it
 
 # ----------------------------------------------------------------------+-
+# Platform
+# ----------------------------------------------------------------------+-
+# None required for this application;
+
+# ----------------------------------------------------------------------+-
+# Core
+# ----------------------------------------------------------------------+-
+SRC_FILES += core/swtrace/swtrace-led.c
+INC_DIRS  += core/swtrace
+INC_DIRS  += core/board
+
+# ----------------------------------------------------------------------+-
 # STM32Cube Low Level Drivers for the F0.
 #
 # Note: some of the #includes in the Cube CMSIS source files
@@ -34,16 +46,6 @@ INC_DIRS  += mcu/STM32CubeF0/Drivers
 INC_DIRS  += mcu/STM32CubeF0/Drivers/CMSIS/Core/Include
 INC_DIRS  += mcu/STM32CubeF0/Drivers/CMSIS/Device/ST/STM32F0xx/Include
 INC_DIRS  += mcu/STM32CubeF0/Drivers/STM32F0xx_HAL_Driver/Inc
-
-# ----------------------------------------------------------------------+-
-# Platform
-# ----------------------------------------------------------------------+-
-# None required for this application;
-
-# ----------------------------------------------------------------------+-
-# Core
-# ----------------------------------------------------------------------+-
-SRC_FILES += core/swtrace/swtrace-led.c
 
 # ----------------------------------------------------------------------+-
 # MCU

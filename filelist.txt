@@ -17,12 +17,17 @@ apps/button-blinky-it/Makefile
 stm32-gcc-linux-quick-start/mcu
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 
+core/
 core/README.md
+
 core/swtrace
 core/swtrace/README.md
-
 core/swtrace/swtrace-led.h
 core/swtrace/swtrace-led.c
+
+/core/board/README.md
+/core/board/qs-board-model-nucleo-f091rc.h
+/core/board/qs-board-model-nucleo-l476rg.h
 
 mcu/README.md
 mcu/vtor
