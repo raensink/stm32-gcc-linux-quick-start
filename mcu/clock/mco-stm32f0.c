@@ -30,7 +30,7 @@ SPDX-License-Identifier: MIT-0
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // Configure Microcontroller Clock Output (MCO)
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-void mcu_clock_mco_config(void)
+void MCU_Clock_MCO_Config(void)
 {
     // Configure GPIO PIN
     //

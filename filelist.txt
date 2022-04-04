@@ -20,6 +20,7 @@ stm32-gcc-linux-quick-start/mcu
 core/README.md
 core/swtrace
 core/swtrace/README.md
+
 core/swtrace/swtrace-led.h
 core/swtrace/swtrace-led.c
 

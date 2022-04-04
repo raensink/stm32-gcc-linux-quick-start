@@ -53,7 +53,7 @@ static uint32_t TicksPerSecond;
 // -----------------------------------------------------------------------------+-
 // Clock Tree Default Configuration
 // -----------------------------------------------------------------------------+-
-void mcu_clock_tree_default_config(void)
+void MCU_Clock_Tree_Default_Config(void)
 {
     // Configure the PLL to (HSI / 2) * 12 = 48MHz.
     // Use a PLLMUL of 0xA for *12, and keep PLLSRC at 0

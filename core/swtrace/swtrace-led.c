@@ -20,7 +20,31 @@ TODO: @@@@@@@@@@@@ Add Pin-Periph-LL Mapping @@@@@@@@@@@@@@
 // -----------------------------------------------------------------------------+-
 // Initialize the GPIO peripherals and pins for the trace LEDs.
 // -----------------------------------------------------------------------------+-
-void SW_Trace_LED_Init(void)
+void SW_Trace_External_LED_Init(void)
+{
+    // -----------------------------------------------------------------------------+-
+    // GPIO PC0, PC1, PC2, PC3;
+    // External Off-Board LEDs
+    //
+    // We know from the UM1724 STM32 Nucleo-64 Boards User Manual (MB1136)
+    // that PC0-3 are connected to Morpho connector pins 35-38;
+    // See Table 32 on page 61;
+    // -----------------------------------------------------------------------------+-
+    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
+    LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_0, LL_GPIO_MODE_OUTPUT); // Red LED
+    LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_1, LL_GPIO_MODE_OUTPUT); // Green LED
+    LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_2, LL_GPIO_MODE_OUTPUT); // Blue LED
+    LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_3, LL_GPIO_MODE_OUTPUT); // Yellow LED
+
+    // Ensure the LEDs are turned off at initialization time;
+    LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_0);
+    LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_1);
+    LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_2);
+    LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_3);
+}
+
+
+void SW_Trace_OnBoard_LED_Init(void)
 {
     // -----------------------------------------------------------------------------+-
     // GPIO PA5;
@@ -38,27 +62,9 @@ void SW_Trace_LED_Init(void)
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
 
     // Configure pin for output push-pull mode to drive the LED
-    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_OUTPUT); // On-Board LD2
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_5, LL_GPIO_MODE_OUTPUT);
 
-    // -----------------------------------------------------------------------------+-
-    // GPIO PC0, PC1, PC2, PC3;
-    // External Off-Board LEDs
-    //
-    // We know from the UM1724 STM32 Nucleo-64 Boards User Manual (MB1136)
-    // that PC0-3 are connected to Morpho connector pins 35-38;
-    // See Table 32 on page 61;
-    // -----------------------------------------------------------------------------+-
-    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
-    LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_0, LL_GPIO_MODE_OUTPUT); // Red LED
-    LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_1, LL_GPIO_MODE_OUTPUT); // Green LED
-    LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_2, LL_GPIO_MODE_OUTPUT); // Blue LED
-    LL_GPIO_SetPinMode(GPIOC, LL_GPIO_PIN_3, LL_GPIO_MODE_OUTPUT); // Yellow LED
-
-    // Turn them all off for starters;
-    LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_0);
-    LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_1);
-    LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_2);
-    LL_GPIO_ResetOutputPin(GPIOC, LL_GPIO_PIN_3);
+    // Ensure the LED is turned off at initialization time;
     LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_5);
 }
 

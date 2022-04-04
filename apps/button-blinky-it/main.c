@@ -7,7 +7,7 @@ apps/button-blinky-it/main.c
 This application will flash an LED at various rates.
 Pressing a button will change the rate at which it flashes.
 Four external LEDs can be connected for additional blinkiness
-and to support Software Trace Debugging.
+and to support Software Trace for debugging.
 
 DEPENDENCIES:
     MCU & Core services provided by this quick-start project.
@@ -44,7 +44,7 @@ SPDX-License-Identifier: MIT-0
 // Defines how long to wait between blinkies;
 // Volatile because this is changed by the button ISR.
 // -----------------------------------------------------+-
-static volatile int32_t  Blinky_Delay = 0x000FFFFF;
+static volatile int32_t  Blinky_Delay = 0x0007FFFF;
 
 
 // =============================================================================================#=
@@ -93,11 +93,11 @@ static void user_button_config(void)
 static void UserButton_Callback(void)
 {
     Blinky_Delay = Blinky_Delay - 0x00000FFFF;
-    LL_GPIO_TogglePin(GPIOC, LL_GPIO_PIN_0); // Red External LED
+    Trace_Red_Toggle();
     if( Blinky_Delay < 0)
     {
-        LL_GPIO_TogglePin(GPIOC, LL_GPIO_PIN_1);
-        Blinky_Delay = 0x000FFFFF;
+        Trace_Green_Toggle();
+        Blinky_Delay = 0x0007FFFF;
     }
 }
 
@@ -116,29 +116,45 @@ void EXTI4_15_IRQHandler(void) {
 // =============================================================================================#=
 int main(void)
 {
-    // TODO: Someday explain what's going on here.
+    // TODO: Explain what's going on here.
     // Refactor? Move?
     LL_FLASH_SetLatency(LL_FLASH_LATENCY_1);
 
     // Initialize Clock Tree and SysTick at startup;
-    mcu_clock_tree_default_config();
+    MCU_Clock_Tree_Default_Config();
 
     // Configure Microcontroller Clock Output
-    mcu_clock_mco_config();
+    MCU_Clock_MCO_Config();
 
     // Application specific init.
-    SW_Trace_LED_Init();
+    SW_Trace_External_LED_Init();
+    SW_Trace_OnBoard_LED_Init();
     user_button_config();
 
     // Forever toggle some LEDs...
     while (1)
     {
-        LL_GPIO_TogglePin(GPIOA, LL_GPIO_PIN_5); // On-Board Green
-        swtrace_blue_toggle();
+        Trace_OnBrdGreen_On();
+        Trace_Blue_Off();
 
-        // Busy wait to delay;
-        // Duration can vary depending on 
-        for( uint32_t i=0; i<Blinky_Delay; i++) {}
+        for( uint32_t i=0; i<0x000000FF; i++) {
+
+            // Blinking blue and green;
+            Trace_Blue_Toggle();
+            Trace_OnBrdGreen_Toggle();
+
+            // Busy wait to delay;
+            // Duration can vary depending on delay value;
+            for( uint32_t i=0; i<Blinky_Delay; i++) {}
+        }
+
+        Trace_Yellow_On();
+        Trace_OnBrdGreen_On();
+        for( uint32_t i=0; i<0x00F77777; i++) {}
+
+        Trace_Yellow_Off();
+        Trace_OnBrdGreen_Off();
+        for( uint32_t i=0; i<0x00700000; i++) {}
     }
 }
 
