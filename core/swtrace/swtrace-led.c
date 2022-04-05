@@ -12,8 +12,6 @@ SPDX-License-Identifier: MIT-0
 
 #include "core/swtrace/swtrace-led.h"
 
-// STM32 Low Level Drivers
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_bus.h"
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
@@ -26,7 +24,13 @@ void SW_Trace_External_LED_Init(void)
     // Enable the clock to the GPIO peripheral;
     // ToDo: abstract this and make it part of the mapping?
     // -------------------------------------------------------------+-
+#if defined(MCUFAM_STM32F0)
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
+#elif defined(MCUFAM_STM32L4)
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOC);
+#else
+    #error "MCU Family Name Not Defined."
+#endif
 
     // -------------------------------------------------------------+-
     // Configure each pin for output.
@@ -69,7 +73,13 @@ void SW_Trace_OnBoard_LED_Init(void)
     // Enable AHB2 Clock to GPIO Port A in the Reset and Clock Control peripheral;
     // ToDo: abstract this and make it part of the mapping?
     // -------------------------------------------------------------+-
+#if defined(MCUFAM_STM32F0)
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOA);
+#elif defined(MCUFAM_STM32L4)
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
+#else
+    #error "MCU Family Name Not Defined."
+#endif
 
     // Configure pin for output push-pull mode to drive the LED.
     LL_GPIO_SetPinMode(

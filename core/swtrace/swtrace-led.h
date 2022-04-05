@@ -14,7 +14,15 @@ SPDX-License-Identifier: MIT-0
 
 #pragma once
 
-#include "qs-board-model-nucleo-f091rc.h"
+#if defined( BOARD_NUCLEO_F091RC )
+    #include "qs-board-model-nucleo-f091rc.h"
+    #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_bus.h"
+#elif defined( BOARD_NUCLEO_L476RG )
+    #include "qs-board-model-nucleo-l476rg.h"
+    #include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_bus.h"
+#else
+    #error "Board Type Not Defined."
+#endif
 
 
 // =============================================================================================#=

@@ -86,7 +86,6 @@ const uint8_t  AHBPrescTable[16] = {
 };
 
 
-
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // Use the given value to set the SystemCoreClock variable.
 //

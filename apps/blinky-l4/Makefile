@@ -64,7 +64,7 @@ SRC_FILES += mcu/vtor/vector-table-gcc-stm32l4f091xc.s
 # ----------------------------------------------------------------------+-
 # Linker Script
 # ----------------------------------------------------------------------+-
-LINKER_SCRIPT = mcu/linker-script/STM32L4-GCC-STM32F091RCTx_FLASH.ld
+LINKER_SCRIPT = mcu/linker-script/STM32L4-GCC-STM32L476RGTx_FLASH.ld
 
 
 # ----------------------------------------------------------------------+-
@@ -77,6 +77,8 @@ LINKER_SCRIPT = mcu/linker-script/STM32L4-GCC-STM32F091RCTx_FLASH.ld
 CFLAGS  = -g
 CFLAGS += -O0
 CFLAGS += -Wall
+CFLAGS += -DBOARD_NUCLEO_L476RG
+CFLAGS += -DMCUFAM_STM32L4
 CFLAGS += -DSTM32L476xx
 CFLAGS += -mlittle-endian
 CFLAGS += -mthumb

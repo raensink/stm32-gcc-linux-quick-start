@@ -30,13 +30,13 @@ SPDX-License-Identifier: MIT-0
 #include "mcu/clock/clock-tree-default-config.h"
 
 // MCU Device Definition
-#include "CMSIS/Device/ST/STM32F0xx/Include/stm32f091xc.h"
+#include "CMSIS/Device/ST/STM32L4xx/Include/stm32l476xx.h"
 
 // STM32 Low Level Drivers
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_bus.h"
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_exti.h"
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_gpio.h"
-#include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_system.h"
+#include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_bus.h"
+#include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_exti.h"
+#include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_gpio.h"
+#include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_system.h"
 
 
 // =============================================================================================#=
@@ -62,9 +62,17 @@ static void user_button_config(void)
     // -------------------------------------------------------------+-
     // Enable the clock to the GPIO and SYSCFG peripheral;
     // ToDo: abstract this and make it part of the mapping?
+    // Move this to core?
     // -------------------------------------------------------------+-
+#if defined(MCUFAM_STM32F0)
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOC);
     LL_APB1_GRP2_EnableClock(LL_APB1_GRP2_PERIPH_SYSCFG);
+#elif defined(MCUFAM_STM32L4)
+    LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOC);
+    LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);
+#else
+    #error "MCU Family Name Not Defined."
+#endif
 
     // -------------------------------------------------------------+-
     // Configure the input pin;
@@ -85,8 +93,11 @@ static void user_button_config(void)
     // We choose to use the EXTI13 external interrupt line
     // and we configure it's source input as the GPIOC peripheral.
     //
-    // In the RM0091 Ref Manual...
+    // In the STM32F0 RM0091 Ref Manual...
     // See Figure 24 on page 214 and See Section 9.1.5 on page 171.
+    //
+    // In the STM32L4 RM0351 Ref Manual...
+    // See Figure 34 on page 403 and See Section 9.2.6 on page 321.
     // -------------------------------------------------------------+-
     LL_SYSCFG_SetEXTISource(LL_SYSCFG_EXTI_PORTC, LL_SYSCFG_EXTI_LINE13);
 
@@ -98,13 +109,27 @@ static void user_button_config(void)
     LL_EXTI_EnableFallingTrig_0_31(LL_EXTI_LINE_13);
 
     // -------------------------------------------------------------+-
-    // In the NVIC, EXTI lines 4 thru 15 are consolidated into
-    // and single interrupt vector: EXTI4_15.
+    // On the STM32F0 NVIC, EXTI lines 4 thru 15 are consolidated
+    // into a single interrupt vector: EXTI4_15.
+    // See Table 36 on page 210 of RM0091.
+    //
+    // On the STM32L4 NVIC, EXTI lines 10 thru 15 are consolidated
+    // into a single interrupt vector: EXTI15_10.
+    // See Table 58 on page 397 of RM0351.
+    //
     // Enable this this IRQ and set it's priority.
     // -------------------------------------------------------------+-
+#if defined(MCUFAM_STM32F0)
     NVIC_SetPriority(EXTI4_15_IRQn, 3);
     NVIC_EnableIRQ(EXTI4_15_IRQn);
+#elif defined(MCUFAM_STM32L4)
+    NVIC_SetPriority(EXTI15_10_IRQn, 3);
+    NVIC_EnableIRQ(EXTI15_10_IRQn);
+#else
+    #error "MCU Family Name Not Defined."
+#endif
 }
+
 
 // -----------------------------------------------------------------------------+-
 // On-Board User Button Application Callback
@@ -120,9 +145,11 @@ static void user_button_callback(void)
     }
 }
 
+
 // =============================================================================================#=
 // Interrupt Request Handlers
 // =============================================================================================#=
+#if defined(MCUFAM_STM32F0)
 void EXTI4_15_IRQHandler(void) {
     // Check for the EXTI 13 pending interrupt flag in the pending register;
     if ((EXTI->PR & EXTI_PR_PIF13) == EXTI_PR_PIF13) {
@@ -133,9 +160,28 @@ void EXTI4_15_IRQHandler(void) {
     }
     else {
         // We would not expect any other interrupts to be pending at this point
-        // because we have not configured any.
+        // because we have not configured any other EXTIs in the 4-15 range.
     }
 }
+
+#elif defined(MCUFAM_STM32L4)
+void EXTI15_10_IRQHandler(void) {
+    // Check for the EXTI 13 pending interrupt flag in the pending register;
+    if ((EXTI->PR1 & EXTI_PR1_PIF13) == EXTI_PR1_PIF13) {
+        // Clear pending interrupt flag by writing a 'one'.
+        EXTI->PR1 |= EXTI_PR1_PIF13;
+
+        user_button_callback();
+    }
+    else {
+        // We would not expect any other interrupts to be pending at this point
+        // because we have not configured any other EXTIs in the 10-15 range.
+    }
+}
+
+#else
+    #error "MCU Family Name Not Defined."
+#endif
 
 
 // =============================================================================================#=

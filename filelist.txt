@@ -10,8 +10,8 @@ stm32-gcc-linux-quick-start/LICENSE
 stm32-gcc-linux-quick-start/apps/button-blinky-it
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 apps/button-blinky-it/README.md
-apps/button-blinky-it/main.c
 apps/button-blinky-it/Makefile
+apps/button-blinky-it/main.c
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 stm32-gcc-linux-quick-start/apps/blinky-l4
@@ -66,24 +66,10 @@ STM32L476-Nucleo-64/filelist.txt
 STM32L476-Nucleo-64/mcu
 STM32L476-Nucleo-64/mcu/README.md
 STM32L476-Nucleo-64/apps/usart/Makefile
+STM32L476-Nucleo-64/apps/usart/main.c
 
 
-\\wsl$\Ubuntu\home\rae\stm-fun\STM32L476-Nucleo-64\apps\usart
-system_stm32l4xx.c
-stm32_assert.h
-main.h
-README.md
-stm32l4xx_it.c
-readme.txt
-stm32l4xx_it.h
-main.c
-\\wsl$\Ubuntu\home\rae\stm-fun\STM32L476-Nucleo-64\apps
-blinkie
-blinky
-README.md
-blinky-f0
-golf
-blinky-l4
-makefile-apps-common.mk
+platform/gpio/gpio.h
+platform/gpio/gpio.c
 
 
