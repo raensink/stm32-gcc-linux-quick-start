@@ -1,9 +1,9 @@
 
 # ======================================================================================#=
 # MAKEFILE
-# apps/button-blinky-it/Makefile
+# apps/blinky-l4/Makefile
 #
-# Builds the blinky app for the STM32F0 on a NUCLEO-F091RC board.
+# Builds the blinky app for the STM32L4 on a NUCLEO-L476RG board.
 #
 # SPDX-License-Identifier: MIT-0
 # ======================================================================================#=
@@ -20,8 +20,8 @@
 # ----------------------------------------------------------------------+-
 # Application
 # ----------------------------------------------------------------------+-
-SRC_FILES  = apps/button-blinky-it/main.c
-INC_DIRS   = apps/button-blinky-it
+SRC_FILES  = apps/blinky-l4/main.c
+INC_DIRS   = apps/blinky-l4
 
 # ----------------------------------------------------------------------+-
 # Platform
@@ -41,22 +41,22 @@ INC_DIRS  += core/board
 # Note: some of the #includes in the Cube CMSIS source files
 # require the more specific paths shown below.
 # ----------------------------------------------------------------------+-
-SRC_FILES += mcu/STM32CubeF0/Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_ll_utils.c
-INC_DIRS  += mcu/STM32CubeF0/Drivers
-INC_DIRS  += mcu/STM32CubeF0/Drivers/CMSIS/Core/Include
-INC_DIRS  += mcu/STM32CubeF0/Drivers/CMSIS/Device/ST/STM32F0xx/Include
-INC_DIRS  += mcu/STM32CubeF0/Drivers/STM32F0xx_HAL_Driver/Inc
+SRC_FILES += mcu/STM32CubeL4/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_ll_utils.c
+INC_DIRS  += mcu/STM32CubeL4/Drivers
+INC_DIRS  += mcu/STM32CubeL4/Drivers/CMSIS/Core/Include
+INC_DIRS  += mcu/STM32CubeL4/Drivers/CMSIS/Device/ST/STM32L4xx/Include
+INC_DIRS  += mcu/STM32CubeL4/Drivers/STM32L4xx_HAL_Driver/Inc
 
 # ----------------------------------------------------------------------+-
 # MCU
 # CMSIS Startup Init and Dependencies
 # ----------------------------------------------------------------------+-
 SRC_FILES += mcu/clock/cmsis-clock.c
-SRC_FILES += mcu/clock/clock-tree-default-config-stm32f0.c
-SRC_FILES += mcu/clock/mco-stm32f0.c
+SRC_FILES += mcu/clock/clock-tree-default-config-stm32l4.c
+SRC_FILES += mcu/clock/mco-stm32l4.c
 
 SRC_FILES += mcu/vtor/reset-handler-default-cm0.s
-SRC_FILES += mcu/vtor/vector-table-gcc-stm32f091xc.s
+SRC_FILES += mcu/vtor/vector-table-gcc-stm32l4f091xc.s
 
 ### TODO? SRC_FILES += mcu/stm32f0/core/scb.c
 
@@ -64,21 +64,25 @@ SRC_FILES += mcu/vtor/vector-table-gcc-stm32f091xc.s
 # ----------------------------------------------------------------------+-
 # Linker Script
 # ----------------------------------------------------------------------+-
-LINKER_SCRIPT = mcu/linker-script/STM32F0-GCC-STM32F091RCTx_FLASH.ld
+LINKER_SCRIPT = mcu/linker-script/STM32L4-GCC-STM32F091RCTx_FLASH.ld
+
 
 # ----------------------------------------------------------------------+-
 # Compiler & Linker Options
 #
-# STM32F091xC
+# STM32FL476xx
 #     CMSIS requires this symbol be defined.
-#     See: CMSIS/Device/ST/STM32F0xx/Include/stm32f0xx.h
+#     See: CMSIS/Device/ST/STM32L4xx/Include/stm32l4xx.h
 # ----------------------------------------------------------------------+-
 CFLAGS  = -g
 CFLAGS += -O0
 CFLAGS += -Wall
-CFLAGS += -DSTM32F091xC
+CFLAGS += -DSTM32L476xx
+CFLAGS += -mlittle-endian
 CFLAGS += -mthumb
-CFLAGS += -mcpu=cortex-m0
+CFLAGS += -mcpu=cortex-m4
+CFLAGS += -mfloat-abi=hard
+CFLAGS += -mfpu=fpv4-sp-d16
 CFLAGS += --specs=nosys.specs
 
 LDFLAGS  = $(CFLAGS)

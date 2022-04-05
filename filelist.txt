@@ -17,8 +17,8 @@ apps/button-blinky-it/Makefile
 stm32-gcc-linux-quick-start/apps/blinky-l4
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 apps/blinky-l4/README.md
-apps/blinky-l4/main.c
 apps/blinky-l4/Makefile
+apps/blinky-l4/main.c
 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
@@ -51,10 +51,12 @@ mcu/clock/clock-tree-default-config.h
 mcu/clock/clock-tree-default-config-stm32f0.c
 mcu/clock/mco.h
 mcu/clock/mco-stm32f0.c
+mcu/linker-script/README.md
 
 mcu/STM32CubeF0
 mcu/STM32CubeL4
 
+mcu/STM32CubeL4/Drivers/CMSIS/Device/ST/STM32L4xx/Include/stm32l4xx.h
 
 ================================================================================================#=
 STM32L476-Nucleo-64/
@@ -63,5 +65,25 @@ STM32L476-Nucleo-64/
 STM32L476-Nucleo-64/filelist.txt
 STM32L476-Nucleo-64/mcu
 STM32L476-Nucleo-64/mcu/README.md
+STM32L476-Nucleo-64/apps/usart/Makefile
+
+
+\\wsl$\Ubuntu\home\rae\stm-fun\STM32L476-Nucleo-64\apps\usart
+system_stm32l4xx.c
+stm32_assert.h
+main.h
+README.md
+stm32l4xx_it.c
+readme.txt
+stm32l4xx_it.h
+main.c
+\\wsl$\Ubuntu\home\rae\stm-fun\STM32L476-Nucleo-64\apps
+blinkie
+blinky
+README.md
+blinky-f0
+golf
+blinky-l4
+makefile-apps-common.mk
 
 
