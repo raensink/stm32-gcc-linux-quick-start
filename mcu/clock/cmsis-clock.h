@@ -21,6 +21,10 @@ SPDX-License-Identifier: MIT-0
 // =============================================================================================#=
 extern uint32_t  SystemCoreClock;
 
+
+extern const uint32_t MSIRangeTable[];
+
+
 extern const uint8_t  AHBPrescTable[];
 
 

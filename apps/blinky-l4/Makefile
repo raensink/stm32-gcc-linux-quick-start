@@ -52,11 +52,11 @@ INC_DIRS  += mcu/STM32CubeL4/Drivers/STM32L4xx_HAL_Driver/Inc
 # CMSIS Startup Init and Dependencies
 # ----------------------------------------------------------------------+-
 SRC_FILES += mcu/clock/cmsis-clock.c
-SRC_FILES += mcu/clock/clock-tree-default-config-stm32l4.c
 SRC_FILES += mcu/clock/mco-stm32l4.c
+SRC_FILES += mcu/clock/clock-tree-default-config-stm32l4.c
 
-SRC_FILES += mcu/vtor/reset-handler-default-cm0.s
-SRC_FILES += mcu/vtor/vector-table-gcc-stm32l4f091xc.s
+SRC_FILES += mcu/vtor/reset-handler-default-cm4.s
+SRC_FILES += mcu/vtor/vector-table-gcc-stm32l476xx.s
 
 ### TODO? SRC_FILES += mcu/stm32f0/core/scb.c
 

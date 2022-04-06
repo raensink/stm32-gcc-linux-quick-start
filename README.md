@@ -9,7 +9,7 @@ This is an STM32 quick-start project with the following characteristics:
 - Support for multiple MCUs;
 - Support for multiple boards;
 
-As of April 2022, this is still a work-in-progress.
+This is currently a work-in-progress, and maybe so for quite a while longer.
 The plan is to create create a minimal, yet well organized, and ridiculously well commented
 project that blinks an LED and more.  Aspirational platform features include:
 - Software trace log to external serial UART.
@@ -20,9 +20,11 @@ project that blinks an LED and more.  Aspirational platform features include:
 ## Current Status
 #### MCU Support:
 - STM32F091RC
+- STM32L476RG
 - more to come!
 #### Board Support:
 - NUCLEO-F091RC
+- NUCLEO-L476RG
 - more to come!
 
 ## Getting started
@@ -66,9 +68,6 @@ but only one at a time may be loaded and executed on the target.
 #### platform
 Future.  Reusable components that support the applications.
 
-#### board
-Future.  Source code that is specific to a particular board.
-
 #### core
 Core embedded features and capabilities necessary for many embedded projects.
 
@@ -79,9 +78,9 @@ Startup code and low-level drivers specific to a particular microcontroller.
 Develoment tools for building, deploying, and testing this project.
 
 #### build
-This is a temporary folder that is automatically created by the build scripts.
+This is a temporary folder that is automatically created by the makefiles.
 All derived build products exist in this directory.
 This folder is excluded from the repo using the .gitignore file.
-A make clean operation will delete this entire folder.
+A 'make clean' operation will delete this entire folder.
 
 

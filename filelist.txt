@@ -40,9 +40,11 @@ core/swtrace/swtrace-led.c
 mcu/README.md
 mcu/vtor
 mcu/vtor/README.md
-mcu/vtor/reset-handler-cm0-default.s
+mcu/vtor/reset-handler-default-cm0.s
+mcu/vtor/reset-handler-default-cm4.s
 mcu/vtor/vector-table.s
 mcu/vtor/vector-table-gcc-stm32f091xc.s
+mcu/vtor/vector-table-gcc-stm32l476xx.s
 mcu/clock
 mcu/clock/README.md
 mcu/clock/cmsis-clock.h
@@ -51,6 +53,7 @@ mcu/clock/clock-tree-default-config.h
 mcu/clock/clock-tree-default-config-stm32f0.c
 mcu/clock/mco.h
 mcu/clock/mco-stm32f0.c
+mcu/clock/mco-stm32l4.c
 mcu/linker-script/README.md
 
 mcu/STM32CubeF0

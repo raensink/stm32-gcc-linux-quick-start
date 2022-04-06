@@ -53,6 +53,47 @@ SPDX-License-Identifier: MIT-0
 uint32_t SystemCoreClock;
 
 
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+MSIRangeTable[]
+    List of the available frequencies for the STM32L4 MSI clock.
+
+MSI Multi-Speed Internal RC Oscillator Clock
+    According to the RM0351 STM32L4 Reference Manual:
+    "The MSI clock signal is generated from an internal RC oscillator.
+    Its frequency range can be adjusted by software by using the MSIRANGE[3:0] bits
+    in the Clock control register (RCC_CR).
+    Twelve frequency ranges are available:
+        100 kHz, 200 kHz, 400 kHz, 800 kHz,
+        1 MHz, 2 MHz, 4 MHz (default value), 8 MHz,
+        16 MHz, 24 MHz, 32 MHz, and 48 MHz.
+
+    The MSI clock is used as system clock after Restart from Reset,
+    Wakeup from Standby, and Shutdown low-power modes.
+    After restart from Reset, the MSI frequency is set to its default value 4 MHz."
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+*/
+#if defined(MCUFAM_STM32L4)
+const uint32_t MSIRangeTable[12] = {
+      100000U,
+      200000U,
+      400000U,
+      800000U,
+
+     1000000U,
+     2000000U,
+     4000000U,
+     8000000U,
+
+    16000000U,
+    24000000U,
+    32000000U,
+    48000000U
+};
+#endif
+
+
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // GLOBAL: AHBPrescTable[]
 //
