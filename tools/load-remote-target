@@ -189,14 +189,16 @@ def verify_remote_binary(filename):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 def load_remote_target(given_filename):
 
-    config_file_path =  '/usr/share/openocd/scripts/board/st_nucleo_l476rg.cfg'
+    ### config_file_path =  '/usr/share/openocd/scripts/board/st_nucleo_l476rg.cfg'
     ### config_file_path =  '/usr/share/openocd/scripts/board/st_nucleo_f0.cfg'
+    config_file_path =  '/usr/share/openocd/scripts/board/st_nucleo_l476rg.cfg'
 
     openocd_command  = f'"program /tmp/{given_filename} reset exit 0x08000000"'
     remote_command   = f'openocd --file {config_file_path}  --command {openocd_command} '
 
     completed_command = run_remote_command(remote_command)
     if completed_command.returncode != 0:
+        print( f"Check the config file: {config_file_path} " )
         return False
 
     print( '' )

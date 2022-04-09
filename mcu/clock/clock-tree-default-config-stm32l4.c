@@ -17,7 +17,7 @@ and various STM32 example code.
 
 According to the CMSIS documentation, the CMSIS system file may require
 application specific adaptations and therefore should be copied into
-the application project folder.  That is exactly what we have done here, at least in part.
+the application project folder.  That is what we have done here, at least in part.
 
 DEPENDENCIES:
     STM32 Cube HAL Low Level Drivers;
@@ -161,7 +161,7 @@ void MCU_Clock_Tree_Default_Config(void)
     while(LL_RCC_PLL_IsReady() != 1) {};
 
     // ---------------------------------------------------------------------+-
-    // Set System Clock Source Switch to PLL
+    // Set System Clock Source to PLL
     // SYSCLK = PLLCLK = 80MHz
     // Wait until System Clock Switch Status indicates PLL is the source.
     // ---------------------------------------------------------------------+-
@@ -197,7 +197,7 @@ void MCU_Clock_Tree_Default_Config(void)
     // ---------------------------------------------------------------------+-
     TicksPerSecond = 1000U;
     LL_InitTick(HCLK_Frequency_Hz, TicksPerSecond);
-}
+};
 
 
 

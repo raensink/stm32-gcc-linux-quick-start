@@ -4,8 +4,20 @@
 CLOCK TREE DEFAULT CONFIG
 mcu/clock/clock-tree-default-config-stm32f0.c
 
-Provides a default configuration service for clock tree,
-including the Cortex-M System Timer (SysTick).
+Provides a default configuration service for
+the clock tree including the Cortex-M System Timer (SysTick).
+
+The purpose of this software module is to perform startup initialization on the clock tree.
+At this time there is only one such service.  Perhaps in the future we will have more
+clock-related services and locate those here as well.
+
+This module contains a project-specific adaptation of the CMSIS SystemInit() function.
+It is very roughly based on the system_<device>.c file from the STM32 Cube MCU Package
+and various STM32 example code.
+
+According to the CMSIS documentation, the CMSIS system file may require
+application specific adaptations and therefore should be copied into
+the application project folder.  That is what we have done here, at least in part.
 
 DEPENDENCIES:
     STM32 Cube HAL Low Level Drivers;
@@ -53,8 +65,27 @@ static uint32_t TicksPerSecond;
 // -----------------------------------------------------------------------------+-
 // Clock Tree Default Configuration
 // -----------------------------------------------------------------------------+-
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+MCU Clock-Tree Default Config()
+----------------------------------------------------------------+-
+CLOCK-TREE CONFIGURATION
+----------------------------------------------------------------+-
+Upon completion, this function configures the tree like so:
+    MSI(4MHz) ==> PLL
+    PLLCLK:       ??MHz
+    SYSCLK:       ??MHz
+    HCLK:         ??MHz
+    PCLK1:        ??MHz
+    PCLK2:        ??MHz
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+*/
 void MCU_Clock_Tree_Default_Config(void)
 {
+    // ---------------------------------------------------------------------+-
+    // Configure and enable the PLL as follows:
+    //
     // Configure the PLL to (HSI / 2) * 12 = 48MHz.
     // Use a PLLMUL of 0xA for *12, and keep PLLSRC at 0
     // to use (HSI / PREDIV) as the core source. HSI = 8MHz.
@@ -65,13 +96,17 @@ void MCU_Clock_Tree_Default_Config(void)
     // Turn the PLL on and wait for it to be ready.
     RCC->CR    |=  (RCC_CR_PLLON);
     while (!(RCC->CR & RCC_CR_PLLRDY)) {};
-    // Select the PLL as the system clock source.
+    // ---------------------------------------------------------------------+-
+    // Set System Clock Source to PLL
     RCC->CFGR  &= ~(RCC_CFGR_SW);
     RCC->CFGR  |=  (RCC_CFGR_SW_PLL);
     while (!(RCC->CFGR & RCC_CFGR_SWS_PLL)) {};
 
+    // ---------------------------------------------------------------------+-
     // Set the global clock frequency variable.
+    // Record the freq of the HCLK to keep the CMSIS dependencies happy;
     HCLK_Frequency_Hz = 48000000;
+    LL_SetSystemCoreClock(HCLK_Frequency_Hz);
 
     // ?????? TODO ??????
     // What's going on here?
@@ -83,8 +118,13 @@ void MCU_Clock_Tree_Default_Config(void)
     // Sets CSR:Enable to enable the counter
     // TicksPerSecond = 1000U;
     LL_InitTick(HCLK_Frequency_Hz, TicksPerSecond);
-
-    // Set the CMSIS SystemCoreClock variable to record the freq of the HCLK;
-    LL_SetSystemCoreClock(HCLK_Frequency_Hz);
 };
 
+
+
+#if 0
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|@
+Source Material - alternate implementation
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|@
+#endif
