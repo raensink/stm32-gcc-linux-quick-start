@@ -39,7 +39,8 @@ To build the button-blinky-it application:
 ```
 cd stm32-gcc-linux-quick-start
 make --makefile=apps/button-blinky-it/Makefile clean
-make --makefile=apps/button-blinky-it/Makefile all
+make --makefile=apps/button-blinky-it/Makefile build
+make --makefile=apps/button-blinky-it/Makefile rebuild
 ```
 #### Example Load
 Because WSL does not yet support USB ports, we use a separate linux host to physically connect

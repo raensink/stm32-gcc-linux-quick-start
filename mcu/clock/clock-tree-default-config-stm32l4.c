@@ -52,7 +52,7 @@ static uint32_t HCLK_Frequency_Hz;
 // Set by the clock tree configuration code below;
 // @@@ Perhaps move this to CMSIS-Clock?
 // -----------------------------------------------------+-
-static uint32_t TicksPerSecond;
+static uint32_t SysTick_Frequency_Hz;
 
 
 
@@ -174,7 +174,7 @@ void MCU_Clock_Tree_Default_Config(void)
     // Record the freq of the HCLK to keep the CMSIS dependencies happy;
     // ---------------------------------------------------------------------+-
     LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
-    HCLK_Frequency_Hz = 80000000U;
+    HCLK_Frequency_Hz = 80000000UL;
     LL_SetSystemCoreClock(HCLK_Frequency_Hz);
 
     // ---------------------------------------------------------------------+-
@@ -183,20 +183,42 @@ void MCU_Clock_Tree_Default_Config(void)
     LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_1);
     LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_1);
 
-    // ---------------------------------------------------------------------+-
-    // Configure the Cortex-M SysTick source for 1000 ticks per second
-    // given the HCLK frequency of 80MHz;
+    // -----------------------------------------------------------------------------+-
+    // Configure the Cortex-M SysTick source for 1msec tick.
+    // -----------------------------------------------------------------------------+-
+    // SysTick provides a simple, 24-bit, decrementing, wrap-on-zero counter;
+    // If enabled, counting down to zero will cause the SysTick exception to be pended;
     //
-    // LL_InitTick will:
-    // Set the RELOAD register value to (HCLKFrequency / TicksPerSecond) - 1;
-    // Clear the counter value;
-    // Set CSR:Clock source to use processor clock rather than external clock;
-    // Leaves the CSR:TickInt unchanged (zero?) so assume no SysTick exception? But then why set it?
-    // Sets CSR:Enable to enable the counter;
-    // @@@ Perhaps move this to CMSIS-Clock?
-    // ---------------------------------------------------------------------+-
-    TicksPerSecond = 1000U;
-    LL_InitTick(HCLK_Frequency_Hz, TicksPerSecond);
+    // The counter Clock Source can be one of the following two choices:
+    //     HCLK/1 (CLKSOURCE Bit = 1)
+    //     HCLK/8 (CLKSOURCE Bit = 0)
+    //
+    // HCLK is set for 80Mhz (see above);
+    // We configure the SysTick counter to be
+    // driven at this clock freq directly.
+    //
+    // We desire a 1kHz SysTick frequency:
+    // Equation:    80Mhz/ReloadValue = 1kHz
+    // Solving:     ReloadValue = 80Mhz/1kHz
+    // Generalize:  ReloadValue = HCLK_Frequency_Hz / SysTick_Frequency_Hz
+    // We subtract one to account for zero based counting;
+    // -----------------------------------------------------------------------------+-
+    SysTick_Frequency_Hz = 1000UL; // 1 tick every 1 milli-second;
+    SysTick->LOAD  = (uint32_t)((HCLK_Frequency_Hz / SysTick_Frequency_Hz) - 1UL);
+
+    // Load the initial SysTick Counter Value;
+    SysTick->VAL   = 0UL;
+
+    // Set Priority for SysTick Interrupt
+    NVIC_SetPriority(SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL);
+
+    // CLKSOURCE   - Clock Source set as HCLK/1
+    // TICKINT     - Enable the SysTick Exception
+    // ENABLE      - Enable the SysTick Counter
+    SysTick->CTRL  = 0UL;
+    SysTick->CTRL |= SysTick_CTRL_CLKSOURCE_Msk;
+    SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
+    SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
 };
 
 

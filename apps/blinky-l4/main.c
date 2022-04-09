@@ -179,6 +179,10 @@ void EXTI15_10_IRQHandler(void) {
     }
 }
 
+void SysTick_Handler(void) {
+    Trace_Yellow_Toggle();
+}
+
 #else
     #error "MCU Family Name Not Defined."
 #endif
@@ -221,11 +225,11 @@ int main(void)
             for( uint32_t i=0; i<Blinky_Delay; i++) {}
         }
 
-        Trace_Yellow_On();
+        // Trace_Yellow_On();
         Trace_OnBrdGreen_On();
         for( uint32_t i=0; i<0x00F77777; i++) {}
 
-        Trace_Yellow_Off();
+        // Trace_Yellow_Off();
         Trace_OnBrdGreen_Off();
         for( uint32_t i=0; i<0x00700000; i++) {}
     }
