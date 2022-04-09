@@ -2,27 +2,26 @@
 /*
 ================================================================================================#=
 CLOCK TREE DEFAULT CONFIG
-mcu/clock/clock-tree-default-config-stm32f0.c
+mcu/clock/clock-tree-default-config-stm32l4.c
 
-Provides a default configuration service for clock tree,
-including the Cortex-M System Timer (SysTick).
+Provides a default configuration service for
+the clock tree including the Cortex-M System Timer (SysTick).
 
-The purpose of this software module is to perform the clock startup initialization services.
-At this time there is only one such service and that is to reset the clock configuration.
-Perhaps in the future we will have more clock related services and locate those here as well.
+The purpose of this software module is to perform startup initialization on the clock tree.
+At this time there is only one such service.  Perhaps in the future we will have more
+clock-related services and locate those here as well.
 
 This module contains a project-specific adaptation of the CMSIS SystemInit() function.
-It is based on the system_<device>.c file from the STM32CubeL4 MCU Package:
-    Drivers/CMSIS/Device/ST/STM32L4xx/Source/Templates/system_stm32l4xx.c
+It is very roughly based on the system_<device>.c file from the STM32 Cube MCU Package
+and various STM32 example code.
 
-According to the CMSIS documentation, the CMSIS system file
-may require application specific adaptations and therefore
-should be copied into the application project folder.
-We have done this, in part, by refactoring the clock configuration code and putting it into this new module.
+According to the CMSIS documentation, the CMSIS system file may require
+application specific adaptations and therefore should be copied into
+the application project folder.  That is exactly what we have done here, at least in part.
 
 DEPENDENCIES:
     STM32 Cube HAL Low Level Drivers;
-    STM32F0 MCU;
+    STM32L4 MCU;
 
 SPDX-License-Identifier: MIT-0
 ================================================================================================#=
@@ -51,9 +50,7 @@ static uint32_t HCLK_Frequency_Hz;
 // -----------------------------------------------------+-
 // Frequency of the SysTick Timer in ticks-per-second;
 // Set by the clock tree configuration code below;
-// @@@ or is it really??? @@@
-// TODO: REFACTOR
-// TODO: REFACTOR - move to cmsis-clock?
+// @@@ Perhaps move this to CMSIS-Clock?
 // -----------------------------------------------------+-
 static uint32_t TicksPerSecond;
 
@@ -69,56 +66,146 @@ static uint32_t TicksPerSecond;
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-MCUCORE_CLOCK_StartupInit(void)
+MCU Clock-Tree Default Config()
 
-The goal here should be: configure the clock just enough to ensure
-that we can run the rest of the startup code.
+BACKGROUND
+You must have a picture of the clock tree in front of you if you expect to understand this code.
+See Figure 15 on page 208 of the RM0351 Reference Manual.
 
-The MCU has three internal oscillators:
-    LSI - Low Speed Internal
-    HSI - High Speed Internal
-    MSI - Multi-Speed Internal
-
-Three different clock sources can be used to drive SYSCLK
-• HSI (High speed Internal) oscillator clock
-• HSE (High speed External) oscillator clock
-• PLL clock
-
-The MCU has two secondary clock sources
-    • 32 kHz low speed internal (LSI) RC
-        for the independent watchdog and to optionally drive RTC
-
-    • 32.768 kHz low speed external crystal (LSE)
-        to optionally drive RTC
-
+The L4 MCU has four clock sources that can be used to drive the system clock:
+• HSI (High speed Internal) oscillator clock.
+• MSI (Multi-Speed Internal) oscillator clock.
+• HSE (High speed External) oscillator clock.
+• PLL clock.
 Each clock source can be switched on/off independently
+
+Additional Concepts and Terminology:
+SYSCLK  - System Clock
+
+HCLK    - AHB clock, a.k.a. CPU Clock.
+          HCLK is the main CPU clock, also used for the AHB.
+          This is often referred to as "The AHB clock (HCLK)" in the reference manual.
+          It can be gated when the CPU is sleeping (WFI for example)
+
+PCLK1   - APB1 Clock
+PCLK2   - APB2 Clock
+
+SysTick - Cortex System Timer
+          SysTick is the ARMv7-M standard "system tick" timer commonly used as
+          a timebase in real-time operating systems.
+
+RCC  - Reset and Clock Control
+
+CR   - Clock Control Register
+
+MCO  - Microcontroller Clock Output
+       This pin outputs one of the internal clocks for external use.
+
+----------------------------------------------------------------+-
+CLOCK-TREE CONFIGURATION
+----------------------------------------------------------------+-
+Upon completion, this function configures the tree like so:
+    MSI(4MHz) ==> PLL
+    PLLCLK:       80MHz
+    SYSCLK:       80MHz
+    HCLK:         80MHz
+    PCLK1:        80MHz
+    PCLK2:        80MHz
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 */
 void MCU_Clock_Tree_Default_Config(void)
 {
-    // -----------------------------------------------------------------------------+-
-    // You must have a picture of the clock tree in front of you
-    // if you ever expect to understand this code.
-    // See Figure 15 on page 208 of the RM0351 Reference Manual.
+    // ---------------------------------------------------------------------+-
+    // Enable the MSI and allow it to run at its default 4MHz rate.
     //
-    // HSE     - High Speed External
-    // MSI     - Multi-Speed Internal Clock
-    // SYSCLK  - System Clock
-    // HCLK    - AHB clock, a.k.a. CPU Clock.
-    //           HCLK is the main CPU clock, also used for the AHB.
-    //           This is often referred to as "The AHB clock (HCLK)" in the reference manual.
-    //           It can be gated when the CPU is sleeping (WFI for example)
-    // PCLK1   - APB1 Clock
-    // PCLK2   - APB2 Clock
+    // The MSI clock signal is generated from an internal RC oscillator.
+    // Its frequency range can be adjusted using bits in the RCC_CR.
+    // After restart from Reset, the MSI frequency is set to its default value of 4 MHz.
+    // The MSI RC oscillator has the advantage of providing a low-cost (no external components)
+    // low-power clock source. In addition, when used in PLL-mode, it provides a very accurate
+    // clock source which can be used to run the system at the maximum speed 80 MHz.
     //
-    // SysTick - Cortex System Timer
-    //           SysTick is the ARMv7-M standard "system tick" timer commonly used as
-    //           a timebase in real-time operating systems.
+    // The MSIRDY flag in the Clock control register (RCC_CR) indicates whether
+    // the MSI RC is stable. At startup, the MSI RC output clock is not released
+    // until this bit is set by hardware.  The MSI RC can be switched on and off
+    // by using the MSION bit in the clock control register (RCC_CR).
+    // ---------------------------------------------------------------------+-
+    LL_RCC_MSI_Enable();
+    while(1 != LL_RCC_MSI_IsReady()) {};
+
+    // ---------------------------------------------------------------------+-
+    // Configure and enable the PLL as follows:
     //
-    // RCC - Reset and Clock Control
-    // CR  - Clock Control Register
-    // MCO - Microcontroller Clock Output
-    //       This pin outputs one of the internal clocks for external use.
+    //     Input: MSI
+    //     PLLM:    1
+    //     PLLN:   40
+    //     PLLR:    2
+    //
+    // This yields: PLLCLK = (4MHz * (40/1)) / 2 = 80MHz
+    // ---------------------------------------------------------------------+-
+    uint32_t plln = 40;
+    LL_RCC_PLL_ConfigDomain_SYS(
+        LL_RCC_PLLSOURCE_MSI,
+        LL_RCC_PLLM_DIV_1,
+        plln,
+        LL_RCC_PLLR_DIV_2
+    );
+    LL_RCC_PLL_Enable();
+
+    // ---------------------------------------------------------------------+-
+    // Enable the PLLR output "mapped on SYSCLK domain";
+    // Set PLLREN Main PLLCLK Output Enable;
+    // And wait until PLLRDY is true in RCC Clock Control register
+    // ---------------------------------------------------------------------+-
+    LL_RCC_PLL_EnableDomain_SYS();
+    while(LL_RCC_PLL_IsReady() != 1) {};
+
+    // ---------------------------------------------------------------------+-
+    // Set System Clock Source Switch to PLL
+    // SYSCLK = PLLCLK = 80MHz
+    // Wait until System Clock Switch Status indicates PLL is the source.
+    // ---------------------------------------------------------------------+-
+    LL_RCC_SetSysClkSource(LL_RCC_SYS_CLKSOURCE_PLL);
+    while(LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_PLL) {};
+
+    // ---------------------------------------------------------------------+-
+    // Set AHB Prescaler to 1;
+    // HCLK = SYSCLK(80MHz)/1;
+    // Record the freq of the HCLK to keep the CMSIS dependencies happy;
+    // ---------------------------------------------------------------------+-
+    LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
+    HCLK_Frequency_Hz = 80000000U;
+    LL_SetSystemCoreClock(HCLK_Frequency_Hz);
+
+    // ---------------------------------------------------------------------+-
+    // Set APB1 and APB2 prescalers to HCLK(80MHz) / 1
+    // ---------------------------------------------------------------------+-
+    LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_1);
+    LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_1);
+
+    // ---------------------------------------------------------------------+-
+    // Configure the Cortex-M SysTick source for 1000 ticks per second
+    // given the HCLK frequency of 80MHz;
+    //
+    // LL_InitTick will:
+    // Set the RELOAD register value to (HCLKFrequency / TicksPerSecond) - 1;
+    // Clear the counter value;
+    // Set CSR:Clock source to use processor clock rather than external clock;
+    // Leaves the CSR:TickInt unchanged (zero?) so assume no SysTick exception? But then why set it?
+    // Sets CSR:Enable to enable the counter;
+    // @@@ Perhaps move this to CMSIS-Clock?
+    // ---------------------------------------------------------------------+-
+    TicksPerSecond = 1000U;
+    LL_InitTick(HCLK_Frequency_Hz, TicksPerSecond);
+}
+
+
+
+#if 0
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|@
+Source Material - alternate implementation
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|@
+
     // CSS - Clock Security System
     //
     // -----------------------------------------------------------------------------+-
@@ -131,16 +218,6 @@ void MCU_Clock_Tree_Default_Config(void)
     //     HCLK:   4MHz
     // -----------------------------------------------------------------------------+-
 
-    // Turn on the MSI Clock
-    //
-    // The MSI clock signal is generated from an internal RC oscillator.
-    // Its frequency range can be adjusted by software by using bits in the Clock control register (RCC_CR).
-    // After restart from Reset, the MSI frequency is set to its default value 4 MHz.
-    // The MSI RC oscillator has the advantage of providing a low-cost (no external components)
-    // low-power clock source. In addition, when used in PLL-mode with the LSE, it provides
-    // a very accurate clock source which can be used by the USB OTG FS device,
-    // and feed the main PLL to run the system at the maximum speed 80 MHz.
-    //
     // The MSIRDY flag in the Clock control register (RCC_CR) indicates whether the MSI RC
     // is stable or not. At startup, the MSI RC output clock is not released until this bit is set by hardware.
     // The MSI RC can be switched on and off by using the MSION bit in the Clock control register (RCC_CR).
@@ -226,8 +303,6 @@ void MCU_Clock_Tree_Default_Config(void)
     // Reset Value: 0x0000 0000
     // All such interrupts disabled.
     RCC->CIER = 0x00000000U;
-	
-	
-	
 }
-
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|@
+#endif
