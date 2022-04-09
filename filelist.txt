@@ -5,6 +5,7 @@ stm32-gcc-linux-quick-start/filelist.txt
 ================================================================================================#=
 stm32-gcc-linux-quick-start/README.md
 stm32-gcc-linux-quick-start/LICENSE
+stm32-gcc-linux-quick-start/apps/
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 stm32-gcc-linux-quick-start/apps/button-blinky-it

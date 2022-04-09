@@ -122,18 +122,28 @@ This function is analogous to the crt0.s "_start" function in libc.
         .weak      Reset_Handler              @ allow the linker to redefine this with a strong version.
 
 Reset_Handler:
-
-        /* ---------------------- Set Stack Pointer Register ----------------------------- */
+        // Set Stack Pointer
         ldr     sp, =_estack      @ Use the symbol defined in the linker script.
 
-        /* ---------------------- CMSIS Startup Init -------------------------------------- */
-        @ Call and return from our equivalents for the CMSIS SystemInit function.
-        @@ bl      MCUCORE_SCB_MaybeEnableFPU
-        @@ bl      MCUCORE_CLOCK_StartupInit
-        @ TODO: maybe move the Vector Table.
-        @ MCUCORE_VTOR_SetVectorTableLocation(void)
+        // -------------------------------------------------------------+-
+        // CMSIS Startup SystemInit
+        // -------------------------------------------------------------+-
+        // We choose to let the reset handler run using the default clock tree configuration,
+        // and then let main() configure the clock explicitly.
+        // 
+        // The other steps from the example CMSIS SystemInit function are:
+        //     Maybe enable the FPU
+        //     Maybe set the vector table location (no need to do that here)
+        //     bl      MCUCORE_SCB_MaybeEnableFPU
+        //     bl      MCUCORE_VTOR_SetVectorTableLocation
+        //
+        // Note: at this point, the C run time environment is not yet setup.
+        // -------------------------------------------------------------+-
 
-        /* ---------------------- Non-Zero Initialized Data ------------------------------ */
+        // -------------------------------------------------------------+-
+        // Non-Zero Initialized Data
+        // Copy the data segment initializers from flash to RAM.
+        // -------------------------------------------------------------+-
         movs    r1, 0             @ R1 is the index from the start of the initialized data.
         b       LoopCopyDataInit  @ First check whether there even is any initialized data.
 
@@ -154,7 +164,9 @@ LoopCopyDataInit:
         ldr     r2, =_sbss        @ R2 is the address in RAM of the first word of zero initialized data.
         b       LoopFillZerobss   @ Begin zero initialization.
 
-        /* ---------------------- Zero Initialized Data ---------------------------------- */
+        // -------------------------------------------------------------+-
+        // Zero Initialized Data
+        // -------------------------------------------------------------+-
 FillZerobss:
         movs    r3, 0             @ The zero to be stored.
         str     r3, [r2], 4       @ Store the zero at *R2, Increment R2 by 4
@@ -165,31 +177,29 @@ LoopFillZerobss:
         bcc     FillZerobss       @ (Branch if carry clear)  If not, branch to copy the next word.
 
 
-        /* ------------------------- C RunTime Initialize Data --------------------------- */
-                                     @ We are done with non-zero initialization.
+        // -------------------------------------------------------------+-
+        // C RunTime Initialize Data
+        // -------------------------------------------------------------+-
         bl      __libc_init_array    @ Call (and return from) C startup initialization.
 
-        /*
-        --------------------------------------------------------------------------------+-
-        Call Application Main()
 
-        At this point, the "system" must be in a standards-conforming state.
-        This means that all the pre-conditions for a C program have been satisfied
-        from the perspective of the C Language Standard.
-        --------------------------------------------------------------------------------+-
-        */
+        // -----------------------------------------------------------------------------+-
+        // Call Application Main()
+        // 
+        // At this point, the "system" must be in a standards-conforming state.
+        // This means that all the pre-conditions for a C program have been satisfied
+        // from the perspective of the C Language Standard.
+        // -----------------------------------------------------------------------------+-
         bl   main    @ Call the application entry point. Appears to be no setup for argc and argv.
 
-        /*
-        --------------------------------------------------------------------------------+-
-        Loop Forever
-        Just in case main returns.
-
-        This approach is fine if we have configured a watchdog timer.
-        Otherwise it would be better to take some action here
-        to alert and recover the system.
-        --------------------------------------------------------------------------------+-
-        */
+        // -------------------------------------------------------------+-
+        // Loop Forever
+        // Just in case main returns.
+        //
+        // This approach is fine if we have configured a watchdog timer.
+        // Otherwise it would be better to take some action here
+        // to alert and recover the system.
+        // -------------------------------------------------------------+-
 LoopForever:
         b    LoopForever
 

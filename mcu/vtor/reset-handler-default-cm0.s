@@ -100,6 +100,12 @@ EndBSSRAM:      .word  _ebss
 */
 
 
+//
+// as an alternative see:
+// __STATIC_FORCEINLINE __NO_RETURN void __cmsis_start(void)
+// in cmsis_gcc.h
+//
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 Reset Handler Function
@@ -116,11 +122,28 @@ This function is analogous to the crt0.s "_start" function in libc.
         .weak      Reset_Handler              @ allow the linker to redefine this with a strong version.
 
 Reset_Handler:
-        @ Set Stack Pointer
+        // Set Stack Pointer
         ldr   r0, =_estack
         mov   sp, r0
 
-        @ Copy the data segment initializers from flash to SRAM
+        // -------------------------------------------------------------+-
+        // CMSIS Startup SystemInit
+        // -------------------------------------------------------------+-
+        // We choose to let the reset handler run using the default clock tree configuration,
+        // and then let main() configure the clock explicitly.
+        // 
+        // The other steps from the example CMSIS SystemInit function are:
+        //     Maybe enable the FPU (not sure the CM0 has an FPU?)
+        //     Maybe set the vector table location (no need to do that here)
+        //     bl      MCUCORE_VTOR_SetVectorTableLocation
+        //
+        // Note: at this point, the C run time environment is not yet setup.
+        // -------------------------------------------------------------+-
+
+        // -------------------------------------------------------------+-
+        // Non-Zero Initialized Data
+        // Copy the data segment initializers from flash to RAM.
+        // -------------------------------------------------------------+-
         ldr r0, =_sdata
         ldr r1, =_edata
         ldr r2, =_sidata
@@ -137,12 +160,15 @@ LoopCopyDataInit:
         cmp r4, r1
         bcc CopyDataInit
 
-        @ Zero fill the bss segment.
+        // Zero fill the bss segment.
         ldr r2, =_sbss
         ldr r4, =_ebss
         movs r3, #0
         b LoopFillZerobss
 
+        // -------------------------------------------------------------+-
+        // Zero Initialized Data
+        // -------------------------------------------------------------+-
 FillZerobss:
         str  r3, [r2]
         adds r2, r2, #4
@@ -151,36 +177,29 @@ LoopFillZerobss:
         cmp r2, r4
         bcc FillZerobss
 
-        /* ---------------------- CMSIS Startup Init -------------------------------------- */
-        @ Call and return from our equivalents for the CMSIS SystemInit function.
-        @ @@@ bl      MCUCORE_CLOCK_StartupInit
-        @ @@@ bl      MCUCORE_SCB_MaybeEnableFPU
-        @ @@@ bl      MCUCORE_VTOR_SetVectorTableLocation(void)
-
-        /* Call static constructors */
+        // -------------------------------------------------------------+-
+        // C RunTime Initialize Data
+        // -------------------------------------------------------------+-
         bl   __libc_init_array
 
-        /*
-        --------------------------------------------------------------------------------+-
-        Call Application Main()
 
-        At this point, the "system" must be in a standards-conforming state.
-        This means that all the pre-conditions for a C program have been satisfied
-        from the perspective of the C Language Standard.
-        --------------------------------------------------------------------------------+-
-        */
+        // -----------------------------------------------------------------------------+-
+        // Call Application Main()
+        // 
+        // At this point, the "system" must be in a standards-conforming state.
+        // This means that all the pre-conditions for a C program have been satisfied
+        // from the perspective of the C Language Standard.
+        // -----------------------------------------------------------------------------+-
         bl   main    @ Call the application entry point. Appears to be no setup for argc and argv.
 
-        /*
-        --------------------------------------------------------------------------------+-
-        Loop Forever
-        Just in case main returns.
-
-        This approach is fine if we have configured a watchdog timer.
-        Otherwise it would be better to take some action here
-        to alert and recover the system.
-        --------------------------------------------------------------------------------+-
-        */
+        // -------------------------------------------------------------+-
+        // Loop Forever
+        // Just in case main returns.
+        //
+        // This approach is fine if we have configured a watchdog timer.
+        // Otherwise it would be better to take some action here
+        // to alert and recover the system.
+        // -------------------------------------------------------------+-
 LoopForever:
         b    LoopForever
 
