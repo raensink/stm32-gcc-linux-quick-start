@@ -21,24 +21,29 @@ apps/blinky-l4/README.md
 apps/blinky-l4/Makefile
 apps/blinky-l4/main.c
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+platform/README.md
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+platform/usart
+platform/usart/usart-it-buff.h
+platform/usart/usart-it-buff.c
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-stm32-gcc-linux-quick-start/mcu
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-
-core/
 core/README.md
-
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 core/swtrace
 core/swtrace/README.md
 core/swtrace/swtrace-led.h
 core/swtrace/swtrace-led.c
 
-/core/board/README.md
-/core/board/qs-board-model-nucleo-f091rc.h
-/core/board/qs-board-model-nucleo-l476rg.h
+core/board/README.md
+core/board/qs-board-model-nucleo-f091rc.h
+core/board/qs-board-model-nucleo-l476rg.h
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 mcu/README.md
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+----------------------------------------------------------------+-
 mcu/vtor
 mcu/vtor/README.md
 mcu/vtor/reset-handler-default-cm0.s
@@ -46,6 +51,8 @@ mcu/vtor/reset-handler-default-cm4.s
 mcu/vtor/vector-table.s
 mcu/vtor/vector-table-gcc-stm32f091xc.s
 mcu/vtor/vector-table-gcc-stm32l476xx.s
+
+----------------------------------------------------------------+-
 mcu/clock
 mcu/clock/README.md
 mcu/clock/cmsis-clock.h
@@ -56,8 +63,11 @@ mcu/clock/clock-tree-default-config-stm32l4.c
 mcu/clock/mco.h
 mcu/clock/mco-stm32f0.c
 mcu/clock/mco-stm32l4.c
+
+----------------------------------------------------------------+-
 mcu/linker-script/README.md
 
+----------------------------------------------------------------+-
 mcu/STM32CubeF0
 mcu/STM32CubeL4
 

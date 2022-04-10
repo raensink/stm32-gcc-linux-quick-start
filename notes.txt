@@ -1,0 +1,95 @@
+
+================================================================================#=
+Developer Notes
+
+STM32L476-Nucleo-64/notes.txt
+================================================================================#=
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# STM32L476-Nucleo-64
+#
+# Based On:
+#     make-stm32-blinky
+#     https://gitlab.com/yusefkarim/make-stm32-blinky
+#     https://www.hackster.io/yusefkarim/upload-code-to-stm32l4-using-linux-gnu-make-and-openocd-a3d4de
+#
+# Hardware Platform:
+#     Dev Kit: Nucleo-L476RG
+#     MCU: STM32L476RG
+#     Package: LQFP64
+#
+# My Repo:
+#     https://github.com/raensink/STM32L476-Nucleo-64
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+Prerequisites
+    sudo apt install -y gcc-arm-none-eabi
+    sudo apt install -y make
+    sudo apt install -y gdb-multiarch
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+Planning
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+[ ] plan next steps
+
+[ ] Architecture, Design, & Project Structure
+    [ ] design a good approach to exceptions
+        These are very low level
+        What the exceptions do, however, can be very app specific
+    [ ] MCU Dir
+        [X] Refactor CMSIS to use a clone/fork submodule with unused dirs removed?
+        [ ] Understand and thoroughly document all MCU files
+            [x] mcu/STM32L4/README.md
+            [ ] Refactor linker script (has an AC6 copyright)
+            [ ] mcu/STM32L4/STM32L476RG.ld
+    [X] Remove project/CMSIS directory.
+
+[ ] USART Application
+    [X] https://github.com/STMicroelectronics/STM32CubeL4/tree/5e1553e07706491bd11f4edd304e093b6e4b83a4/Projects/NUCLEO-L476RG/Examples_LL/USART/USART_Communication_Tx_IT
+    [X] POC string output over uart
+    [ ] @@@ refactor and comment the daylights out of it.
+
+[ ] Golf Application
+    [ ] Copy and Rename this application
+    [ ] Refactor golf to be the most minimal blinky possible.
+    [ ] Finish last refactoring
+        [ ] Heavy comments to all init functions.
+            [x] void LED2_Init(void);
+            [x] void User_Button1_Init(void);
+            [x] void TIM8_CH1_Init(void);
+        [ ] Refactor init and move functions to the platform.
+            @@@ void EXTI15_10_IRQHandler(void);
+            @@@ move this somewhere: System_Clock_80MHz_Init(void);
+
+[ ] Create a CMSIS Core test.
+
+[ ] study again these projects
+    [ ] https://github.com/meriac/baremetal-c
+    [ ] https://github.com/samvrlewis/minimal-stm32
+
+GDB Improvements
+    [ ] add .gitignore to homerae
+    [ ] fix: Unable to match requested speed 500 kHz, using 480 kHz 
+
+Tooling & Workflow
+    [x] Openocd server on NUC
+    [x] Local GDB client on WSL remote on NUC
+    [x] Connect client to server.
+    [x] Remote Load and Debug!!! :-) :-) :-) :-) :-)
+    [x] ObjCopy app binary from app elf
+    [X] Enhance makefile to deploy image to 
+    [X] Python script: load_remote_target
+
+    [ ] STM Cube IDE
+        [ ] Import this project as a makefile project.
+
+    [ ] Support remote console/uart connection.
+    [ ] Refactor tools/*.py to using common module for command helpers.
+
+    [ ] Use docker for local build environment.
+    [ ] Openocd on RPi?
+    [ ] Openocd on docker?
+    [ ] Openocd on docker on RPi?
+    [ ] Remote console on RPi?
+
+
