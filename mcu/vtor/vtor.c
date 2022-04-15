@@ -15,7 +15,7 @@ NOTE: this is file is built but is not currently used.
 ================================================================================================#=
 */
 
-#include "vtor/vtor.h"
+#include "mcu/vtor/vtor.h"
 #include "stm32l4xx.h"
 
 // @@@ TODO - move this VTOR Table stuff to a new VTOR module that provides a service to manage this.

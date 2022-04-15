@@ -48,6 +48,15 @@ SPDX-License-Identifier: MIT-0
 static uint32_t HCLK_Frequency_Hz;
 
 // -----------------------------------------------------+-
+// Frequency of the APB1 PCLK1 in Hz;
+// Frequency of the APB2 PCLK1 in Hz;
+// Set by the clock tree configuration code below;
+// TODO: REFACTOR - move to cmsis-clock?
+// -----------------------------------------------------+-
+static uint32_t PCLK1_Frequency_Hz;
+static uint32_t PCLK2_Frequency_Hz;
+
+// -----------------------------------------------------+-
 // Frequency of the SysTick Timer in ticks-per-second;
 // Set by the clock tree configuration code below;
 // @@@ Perhaps move this to CMSIS-Clock?
@@ -150,6 +159,8 @@ void MCU_Clock_Tree_Default_Config(void)
         plln,
         LL_RCC_PLLR_DIV_2
     );
+
+    // Set PLLON in RCC Clock Control register
     LL_RCC_PLL_Enable();
 
     // ---------------------------------------------------------------------+-
@@ -181,7 +192,10 @@ void MCU_Clock_Tree_Default_Config(void)
     // Set APB1 and APB2 prescalers to HCLK(80MHz) / 1
     // ---------------------------------------------------------------------+-
     LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_1);
+    PCLK1_Frequency_Hz = HCLK_Frequency_Hz;
+
     LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_1);
+    PCLK2_Frequency_Hz = HCLK_Frequency_Hz;
 
     // -----------------------------------------------------------------------------+-
     // Configure the Cortex-M SysTick source for 1msec tick.
@@ -221,6 +235,20 @@ void MCU_Clock_Tree_Default_Config(void)
     SysTick->CTRL |= SysTick_CTRL_ENABLE_Msk;
 };
 
+
+// ---------------------------------------------------------------------+-
+// ---------------------------------------------------------------------+-
+uint32_t MCU_Clock_Get_PCLK1_Frequency_Hz(void)
+{
+    return PCLK1_Frequency_Hz;
+};
+
+// ---------------------------------------------------------------------+-
+// ---------------------------------------------------------------------+-
+uint32_t MCU_Clock_Get_PCLK2_Frequency_Hz(void)
+{
+    return PCLK2_Frequency_Hz;
+};
 
 
 #if 0

@@ -1,9 +1,8 @@
 
 # ======================================================================================#=
 # MAKEFILE
-# apps/blinky-l4/Makefile
+# apps/usart-l4/Makefile
 #
-# Builds the blinky app for the STM32L4 on a NUCLEO-L476RG board.
 #
 # SPDX-License-Identifier: MIT-0
 # ======================================================================================#=
@@ -20,13 +19,13 @@
 # ----------------------------------------------------------------------+-
 # Application
 # ----------------------------------------------------------------------+-
-SRC_FILES  = apps/blinky-l4/main.c
-INC_DIRS   = apps/blinky-l4
+SRC_FILES  = apps/usart-l4/main.c
+INC_DIRS   = apps/usart-l4
 
 # ----------------------------------------------------------------------+-
 # Platform
 # ----------------------------------------------------------------------+-
-# None required for this application;
+SRC_FILES += platform/usart-l4/usart-it-buff.c
 
 # ----------------------------------------------------------------------+-
 # Core
@@ -57,8 +56,9 @@ SRC_FILES += mcu/clock/clock-tree-default-config-stm32l4.c
 
 SRC_FILES += mcu/vtor/reset-handler-default-cm4.s
 SRC_FILES += mcu/vtor/vector-table-gcc-stm32l476xx.s
+SRC_FILES += mcu/vtor/scb.c
+SRC_FILES += mcu/vtor/vtor.c
 
-### TODO? SRC_FILES += mcu/stm32f0/core/scb.c
 
 
 # ----------------------------------------------------------------------+-

@@ -151,6 +151,16 @@ static void usart_tdr_empty(void)
     }
 };
 
+// static void usart_rdr_notempty(void)
+//
+//     rx_byte = LL_USART_ReceiveData8(USART_TypeDef *USARTx)
+//
+//    if rb not full
+//        rb_write_byte_to_tail( &rb_usart_rx, rx_byte );
+//
+//    invoke callback if either: rx_byte is newline
+//    or: number of bytes in rb exceeds some threshold
+//
 
 
 // =============================================================================================#=
@@ -198,6 +208,13 @@ void USART_ISR(USART_Periph_Num given_usart)
     {
         usart_tdr_empty();
     }
+
+    // LL_USART_IsEnabledIT_RXNE(USART_TypeDef *USARTx)
+    // LL_USART_IsActiveFlag_RXNE(USART_TypeDef *USARTx)
+    // call:
+    //     usart_rdr_notempty();
+    //
+
 
     // @@@ FUTURE AS NEEDED @@@
     // @@@ if(LL_USART_IsEnabledIT_TC(USARTx_INSTANCE) && LL_USART_IsActiveFlag_TC(USARTx_INSTANCE))

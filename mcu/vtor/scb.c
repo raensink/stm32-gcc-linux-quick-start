@@ -17,7 +17,7 @@ We have done this, in part, by refactoring the coprocessor configuration code an
 ================================================================================================#=
 */
 
-#include "core/scb.h"
+#include "mcu/vtor/scb.h"
 #include "stm32l4xx.h"
 
 
