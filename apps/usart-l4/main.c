@@ -42,10 +42,11 @@ SPDX-License-Identifier: MIT-0
 // Defines how long to wait between blinkies;
 // Volatile because this is changed by the button ISR.
 // -----------------------------------------------------+-
-static volatile int32_t  Blinky_Delay = 0x00FFFFFF;
+static volatile int32_t  Blinky_Delay = 0x0000FFFF;
 
 // -------------------------------------------------------------+-
 // Flag to toggle when button is pressed;
+// Unused currently;
 // -------------------------------------------------------------+-
 static volatile uint8_t toggle_button_press = 0;
 
@@ -141,24 +142,35 @@ static void user_button_config(void)
 // -----------------------------------------------------------------------------+-
 // On-Board User Button Application Callback
 // -----------------------------------------------------------------------------+-
+
+uint8_t  Input_Buffer[32];
+uint32_t Input_Buffer_Len = sizeof(Input_Buffer);
+
 static void user_button_callback(void)
 {
     Blinky_Delay -= 0xFF;
     if( Blinky_Delay < 0)
     {
-        Trace_Green_Toggle();
-        Blinky_Delay = 0x00FFFFFF;
+        Blinky_Delay = 0x0000FFFF;
     }
 
-    /* Start transfer only if not already ongoing */
-    if (next_char_idx == 0)   // @@@@ remove if????
-    {
-        USART_IT_BUFF_Tx_Write_Best_Effort(TX_Message_String, strlen((char *)TX_Message_String));
+    // @@@ /* Start transfer only if not already ongoing */
+    // @@@ if (next_char_idx == 0)   // @@@@ remove if????
+    // @@@ {
+        // @@@ USART_IT_BUFF_Tx_Write_Best_Effort(TX_Message_String, strlen((char *)TX_Message_String));
+    // @@@ }
+
+    uint32_t byte_count = USART_IT_BUFF_Rx_Get_Line(
+        Input_Buffer, Input_Buffer_Len
+    );
+    if( byte_count > 0) {
+        USART_IT_BUFF_Tx_Write_Best_Effort(Input_Buffer, byte_count);
+    }
+    else {
     }
 
     // Toggle button press flag;
     toggle_button_press ^= 1;
-
 }
 
 
@@ -195,7 +207,6 @@ static void TX_Next_Byte(void)
     {
         uint8_t tx_byte = TX_Message_String[next_char_idx];
 
-        LL_GPIO_SetOutputPin(   GPIOC, LL_GPIO_PIN_3);  // Yellow LED
         USART_TX_This_Byte(USART_PERIPH_2, tx_byte);
 
         next_char_idx++;
@@ -272,9 +283,10 @@ int main(void)
 
     while(1)
     {
-        Trace_Yellow_Toggle();
-
-        for( uint32_t i=0; i<Blinky_Delay; i++) {};
+        // Trace_Yellow_On();
+        for( uint32_t i=0; i<0xFFFFF; i++) {};
+        // Trace_Yellow_Off();
+        for( uint32_t i=0; i<0xFFFFF; i++) {};
     }
 }
 

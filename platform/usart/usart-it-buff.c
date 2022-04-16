@@ -21,6 +21,7 @@
 
 #include "platform/usart/usart-it-buff.h"
 
+#include <stdint.h>
 #include <stdbool.h>
 
 // Project dependencies
@@ -51,14 +52,22 @@ typedef struct
 } ring_buffer;
 
 // ---------------------------------------------------------------------+-
-// Memory allocation for one usart tx ring buffer;
+// Memory allocation for the usart TX and RX ring buffers;
 // Size MUST BE a POWER of TWO;
 // ---------------------------------------------------------------------+-
 static uint8_t usart_tx_buffer[256];
+static uint8_t usart_rx_buffer[256];
 
 static ring_buffer rb_usart_tx = {
     .buff = usart_tx_buffer,
     .size = sizeof(usart_tx_buffer),
+    .tail = 0,
+    .head = 0,
+};
+
+static ring_buffer rb_usart_rx = {
+    .buff = usart_rx_buffer,
+    .size = sizeof(usart_rx_buffer),
     .tail = 0,
     .head = 0,
 };
@@ -96,10 +105,10 @@ static bool rb_is_empty( ring_buffer *rb )
     return rb->head == rb->tail;
 };
 
-// static bool rb_is_full( ring_buffer *rb )
-// {
-    // return rb_bytes_available(rb) == rb->size;
-// };
+static bool rb_is_full( ring_buffer *rb )
+{
+    return rb_bytes_available(rb) == rb->size;
+};
 
 static uint32_t rb_mask( ring_buffer *rb, uint32_t headortail )
 {
@@ -140,29 +149,41 @@ static void tx_data_available(void)
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 static void usart_tdr_empty(void)
 {
-    Trace_Red_On();
     if(rb_is_empty(&rb_usart_tx)) {
-        // does not exist @@@@@@@@@@@@@@ LL_USART_ClearFlag_TXE(USART2);
+        // Disable the TXE interrupt as there is no more TX data to send;
+        // It appears there is no way to explicitly clear TXE active bit?
         LL_USART_DisableIT_TXE(USART2);
     }
     else {
         // Write the next outgoing byte to the TDR register;
+        // this will clear the TXE bit;
         uint8_t next_byte = rb_read_byte_from_head(&rb_usart_tx);
         LL_USART_TransmitData8(USART2, next_byte);
     }
-    Trace_Red_Off();
 };
 
-// static void usart_rdr_notempty(void)
-//
-//     rx_byte = LL_USART_ReceiveData8(USART_TypeDef *USARTx)
-//
-//    if rb not full
-//        rb_write_byte_to_tail( &rb_usart_rx, rx_byte );
-//
-//    invoke callback if either: rx_byte is newline
-//    or: number of bytes in rb exceeds some threshold
-//
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// USART RDR Not Empty;
+// Helper function to do the needful for the ISR;
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+static void usart_rdr_notempty(void)
+{
+    // Read the RX byte; this also clears the RXNE bit;
+    uint8_t rx_byte = LL_USART_ReceiveData8(USART2);
+
+    if(rb_is_full(&rb_usart_rx)) {
+        // All we can do is throw the byte away;
+        // Perhaps someday we can increment an error counter here;
+    }
+    else {
+        rb_write_byte_to_tail( &rb_usart_rx, rx_byte );
+        Trace_Blue_Toggle();
+
+        // @@@ TODO @@@
+        //    invoke callback if either: rx_byte is a newline
+        //    or: if number of bytes in rb exceeds some threshold
+    }
+}
 
 
 // =============================================================================================#=
@@ -195,6 +216,45 @@ void USART_IT_BUFF_Tx_Write_Best_Effort(uint8_t *buff_addr, uint8_t buff_len)
 };
 
 
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// RX API Functions
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+
+// -----------------------------------------------------------------------------+-
+// Get Line
+// -----------------------------------------------------------------------------+-
+uint32_t USART_IT_BUFF_Rx_Get_Line(
+    uint8_t  *input_buffer,
+    uint32_t  input_buffer_len)
+{
+    // allow room for the nul terminating char;
+    int32_t  available_len = input_buffer_len-1;
+    uint32_t idx=0;
+
+    if(available_len <= 0) {
+        // No room in the given buffer;
+        input_buffer[0] = '\0';
+    }
+    else if(rb_is_empty(&rb_usart_rx)) {
+        // No input available;
+        input_buffer[0] = '\0';
+    }
+    else {
+        while(idx<available_len) {
+            uint8_t next_byte = rb_read_byte_from_head(&rb_usart_rx);
+            input_buffer[idx++] = next_byte;
+            if(next_byte == '\n') break;
+            if(rb_is_empty(&rb_usart_rx)) break;
+        }
+        input_buffer[idx] = '\0';
+    }
+    // Trace_Red_Toggle();
+    // Trace_Green_Toggle();
+    // Trace_Yellow_Toggle();
+    return idx;
+}
+
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // USART Peripheral Interrupt
 // This should be invoked from the USART*_IRQHandler functions as appropriate.
@@ -202,20 +262,28 @@ void USART_IT_BUFF_Tx_Write_Best_Effort(uint8_t *buff_addr, uint8_t buff_len)
 void USART_ISR(USART_Periph_Num given_usart)
 {
     // TXE Event Flag => Transmit Data Register Empty;
-    // Hardware sets this flag when data has been transferred to the TX shift register;
+    // Hardware sets this flag when data has been transferred
+    // from the TDR to the TX shift register;
     //
     // If USART_CR1:TXEIE is enabled and USART_ISR:TXE is active
     // Then invoke the TXE callback.
     if(LL_USART_IsEnabledIT_TXE(USART2) && LL_USART_IsActiveFlag_TXE(USART2))
     {
+        // Note: we assume this helper will be either writing to the TDR
+        // which will clear the TXE active bit or
         usart_tdr_empty();
     }
 
-    // LL_USART_IsEnabledIT_RXNE(USART_TypeDef *USARTx)
-    // LL_USART_IsActiveFlag_RXNE(USART_TypeDef *USARTx)
-    // call:
-    //     usart_rdr_notempty();
+    // RXNE Event Flag => Receive Data Register NotEmpty;
+    // Hardware sets this flag when data has been transferred
+    // from the RX shift register to the RDR;
     //
+    if(LL_USART_IsEnabledIT_RXNE(USART2) && LL_USART_IsActiveFlag_RXNE(USART2))
+    {
+        // Note: we assume this helper will be reading from the RDR
+        // which will clear the RXNE active bit;
+        usart_rdr_notempty();
+    }
 
 
     // @@@ FUTURE AS NEEDED @@@
@@ -233,29 +301,6 @@ void USART_ISR(USART_Periph_Num given_usart)
         // @@@ USART_Error_Callback();
     // @@@ }
 };
-
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// @@@ {
-    // @@@ if(LL_USART_IsActiveFlag_TXE(USART2))
-    // @@@ {
-        // @@@ LL_USART_EnableIT_TXE(USARTx_INSTANCE);
-        // @@@ LL_GPIO_SetOutputPin(   GPIOC, LL_GPIO_PIN_1);  // Green LED
-        // @@@ // TDR is empty;
-        // @@@ // Fill TDR with the next char;
-        // @@@ // Note: the TXE active flag is cleared automatically
-        // @@@ // when new data is written to the TDR register;
-    // @@@ }
-    // @@@ else
-    // @@@ {
-        // @@@ // We are trying to write a byte when the TDR register is not available;
-        // @@@ // This should not happen;
-        // @@@ LL_GPIO_SetOutputPin(GPIOC, LL_GPIO_PIN_0);  // Red LED
-    // @@@ }
-// @@@ };
-
-
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
@@ -286,7 +331,7 @@ void USART_IT_BUFF_Module_Init(uint32_t given_PCLK1_frequency_in_hertz)
     // Based on Table 17 on page 92 of the STM32L476xx Data Sheet,
     // we know that PA2 and PA3 use Alternate Function 7 for USART;
     //
-    // @@@ TODO: use board model
+    // @@@ TODO: use Core Board Model
     //
     LL_AHB2_GRP1_EnableClock(LL_AHB2_GRP1_PERIPH_GPIOA);
 
@@ -317,7 +362,8 @@ void USART_IT_BUFF_Module_Init(uint32_t given_PCLK1_frequency_in_hertz)
     // Disable USART prior to modifying its configuration registers (default);
     LL_USART_Disable(USART2);
 
-    // Enable both TX and RX - CR1: Transmit Enable and Receive Enable;
+    // Enable both TX and RX;
+    // CR1: Transmit Enable and Receive Enable bits;
     LL_USART_SetTransferDirection(USART2, LL_USART_DIRECTION_TX_RX);
 
     // Configure character frame format;
@@ -336,7 +382,7 @@ void USART_IT_BUFF_Module_Init(uint32_t given_PCLK1_frequency_in_hertz)
         given_PCLK1_frequency_in_hertz,
         LL_USART_OVERSAMPLING_16,
         115200
-    ); 
+    );
 
     // Enable USART peripheral and wait for confirmation by polling
     // the Transmit Enable Acknowledge Flag
@@ -344,10 +390,14 @@ void USART_IT_BUFF_Module_Init(uint32_t given_PCLK1_frequency_in_hertz)
     LL_USART_Enable(USART2);
     while((!(LL_USART_IsActiveFlag_TEACK(USART2))) || (!(LL_USART_IsActiveFlag_REACK(USART2)))) {};
 
-    // LL_USART_ClearFlag_TXE(USARTx_INSTANCE);
-    // LL_USART_EnableIT_TXE(USARTx_INSTANCE);
-    // @@@@@@@@@ LL_USART_EnableIT_TC(USART2);
-    // @@@@@@@@@ LL_USART_DisableIT_TXE(USART2);
+    // Enable the needful interrupts
+    LL_USART_EnableIT_RXNE(USART2);
+
+    // LL_USART_EnableIT_ERROR(USART2);
+    // LL_USART_ClearFlag_TXE(USART2);
+    // LL_USART_EnableIT_TXE(USART2);
+    // LL_USART_EnableIT_TC(USART2);
+    // LL_USART_DisableIT_TXE(USART2);
 };
 
 #if 0
