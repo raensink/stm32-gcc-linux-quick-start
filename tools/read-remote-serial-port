@@ -1,0 +1,386 @@
+#!/usr/bin/env python3
+
+# ==============================================================================================#=
+# read-remote-serial-port
+#
+# See 'DESCRIPTION' under usage() below.
+#
+# SPDX-License-Identifier: MIT-0
+# ==============================================================================================#=
+import sys
+from   enum import Enum, auto
+import re
+import textwrap
+import subprocess
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# Help
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+def usage():
+    print('''\
+
+NAME
+    read-remote-serial-port - Read the given device on the given remote host and stream to stdout.
+
+SYNOPSIS
+    read-remote-serial-port  --dev /dev/ttyACM0  --remote dta-host
+
+DESCRIPTION
+    Read bytes from a tty port on a remote host and
+    stream them to stdout on the local host.
+    This script:
+        uses ssh to access the remote host;
+        assumes that the user has access to the remote host through an ssh key (no login supported);
+        copies a python script to the remote host to do the actual reading from the port;
+        uses a pseudo terminal with ssh to read stdout from the remote process;
+
+OPTIONS
+    -r, --remote   Identifies to ssh the remote host. (Required)
+    -d, --dev      Full path to the serial port device to be read from. (Required)
+    -b, --baudrate Baudrate for serial port. (not yet implemented)
+    -v, --verbose  Verbose output to support debugging. (not yet implemented)
+    -h, --help     Show this usage.
+
+''')
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# Parse and validate command line arguments.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+class ArgName(Enum):
+    Help    = auto()
+    Remote  = auto()
+    Dev     = auto()
+    Verbose = auto()
+    Error   = auto()
+
+def get_arguments( arg_list ):
+
+    args={} # return args as a dict.
+
+    # For each argument...
+    while arg_list:
+        if arg_list[0] in ('-h', '--help'):
+            args[ArgName.Help] = True
+            del arg_list[0]
+
+        elif arg_list[0] in ('-r', '--remote'):
+            args[ArgName.Remote] = None
+            del arg_list[0]
+            if arg_list:
+                args[ArgName.Remote] = arg_list[0]
+                del arg_list[0]
+
+        elif arg_list[0] in ('-d', '--dev'):
+            args[ArgName.Dev] = None
+            del arg_list[0]
+            if arg_list:
+                args[ArgName.Dev] = arg_list[0]
+                del arg_list[0]
+
+        else:
+            args[ArgName.Error] = arg_list[0]
+            break
+
+    return args
+
+def valid_arguments( arg_dict ):
+
+    # Check for invalid argument;
+    if ArgName.Error in arg_dict:
+        print( f"{arg0}: \"{arg_dict[ArgName.Error]}\" is not a valid option. See {arg0} --help.\n")
+        return False
+
+    # Check for --remote dta-host (required);
+    if ArgName.Remote in arg_dict:
+        if arg_dict[ArgName.Remote] is None:
+            print( f"{arg0}: \"--remote dta-host \" is required. See {arg0} --help.\n")
+            return False
+    else:
+        print( f"{arg0}: \"--remote\" option is required. See {arg0} --help.\n")
+        return False
+
+    # Check for --dev device-path (required);
+    if ArgName.Dev in arg_dict:
+        if arg_dict[ArgName.Dev] is None:
+            print( f"{arg0}: \"--dev /device-path \" is required. See {arg0} --help.\n")
+            return False
+    else:
+        print( f"{arg0}: \"--dev\" option is required. See {arg0} --help.\n")
+        return False
+
+    return True
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# local command helper
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+def run_local_command(given_command_string):
+
+    completed_process = subprocess.run(
+        given_command_string, shell=True, capture_output=True, text=True
+    )
+
+    if completed_process.returncode != 0:
+        print( f"{arg0}: local command failure: {given_command_string}" )
+        print( f"stderr: {completed_process.stderr}")
+        print( '' )
+
+    # Future Verbose
+    ### else:
+        ### print( f"{arg0}: local command success: {given_command_string}" )
+        ### print( f"args: {completed_process.args}")
+        ### print( f"stderr: {completed_process.stderr}")
+        ### print( f"stdout: {completed_process.stdout}")
+        ### print( '' )
+
+    return completed_process
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# remote command helper
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+def run_remote_command(remote_host, given_command_string):
+
+    command_list = f"ssh {remote_host} ".split() + given_command_string.split()
+
+    completed_process = subprocess.run(
+        command_list, capture_output=True, text=True,
+    )
+
+    if completed_process.returncode == 255:
+        print( f"{arg0}: ssh to remote host {remote_host} failed: {' '.join(command_list)}" )
+        print( f"stderr: {completed_process.stderr}")
+
+    elif completed_process.returncode != 0:
+        print( f"{arg0}: remote command failure: {given_command_string}" )
+        print( f"stderr: {completed_process.stderr}")
+
+    # Future Verbose
+    ### else:
+        ### print( f"{arg0}: remote command success: {given_command_string}" )
+        ### print( '' )
+
+    return completed_process
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# helper to stream output from remote process
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+def stream_output_from_remote_process(remote_host, remote_command):
+
+    local_command = f"ssh -t {remote_host} '{remote_command}'"
+
+    remote_process = subprocess.Popen(
+        local_command,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        shell=True
+    )
+    for line in remote_process.stdout:
+        print( str(line, 'UTF-8'), end='' )
+
+    if remote_process.returncode == 255:
+        print( f"{arg0}: ssh to remote host {remote_host} failed" )
+        print( f"stderr: {remote_process.stderr}")
+        return False
+
+    elif remote_process.returncode != 0:
+        print( f"{arg0}: remote process failure: {remote_command}" )
+        print( f"stderr: {remote_process.stderr}")
+        return False
+
+    return True
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# We will be putting a script into a specific directory on the remote host;
+# Let's make sure that directory exists using a helper function;
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+def create_remote_dir(remote_host, full_dir_path):
+
+    completed_command = run_remote_command(
+        remote_host,
+        f"/usr/bin/test -w {full_dir_path} && exit 0 || exit 1"
+    )
+    if completed_command.returncode == 0:
+        # Directory already exists and is writable;
+        return True
+
+    completed_command = run_remote_command(
+        remote_host,
+        f"/usr/bin/test -d {full_dir_path} && exit 0 || exit 1"
+    )
+    if completed_command.returncode == 0:
+        print( f"Directory: {full_dir_path}: already exists but is not writable. \n")
+        return False
+
+    completed_command = run_remote_command(
+        remote_host,
+        f"mkdir --parents {full_dir_path} && exit 0 || exit 1"
+    )
+    if completed_command.returncode != 0:
+        print( f"Failed to create directory: {full_dir_path}. \n")
+        return False
+
+    return True
+
+# ----------------------------------------------------------------------+-
+# Helper function to copy the script over to the remote host;
+# ----------------------------------------------------------------------+-
+def copy_remote_script(remote_host):
+
+    # ----------------------------------------------------------------------+-
+    # This local shell command uses a multi-line string (heredoc)
+    # to avoid issues with quotes in the text of the remote script;
+    # The remote script is cat'd into ssh
+    # and ssh is cat'ing its input into the remote file.
+    # ----------------------------------------------------------------------+-
+    shell_command = f'''cat << EOC | ssh -T {remote_host} 'cat > {remote_script_filepath}'\n{remote_script}EOC'''
+
+    if not run_local_command(shell_command):
+        print("failed to copy script to remote host")
+        return False
+
+    # ----------------------------------------------------------------------+-
+    # Ensure the remote script has execute permissions;
+    # ----------------------------------------------------------------------+-
+    completed_command = run_remote_command(
+        remote_host,
+        f"chmod 755 {remote_script_filepath}"
+    )
+    if completed_command.returncode != 0:
+        print("Failed to change permissions on remote script")
+        return False
+
+    return True
+
+
+
+# ==============================================================================#=
+# The following script is copied over to the remote host and executed there.
+# We assume that python and all the necessary script dependencies
+# have been installed on the remote host.
+# ==============================================================================#=
+remote_script="""\
+#!/usr/bin/env python3
+
+import sys
+import signal
+import serial
+
+# ----------------------------------------------------------------------+-
+# Define and register handler for ctrl+c interrupt signal;
+# ----------------------------------------------------------------------+-
+continue_logging = True
+seconds_since_last_output = 0
+def signal_int_handler(signal, frame):
+    global continue_logging
+    continue_logging = False
+signal.signal(signal.SIGINT, signal_int_handler)
+
+# ----------------------------------------------------------------------+-
+# Open the serial com port of interest;
+# ----------------------------------------------------------------------+-
+print("Opening COM port...")
+com = serial.Serial('__serial_port__', baudrate=__baudrate__, timeout=2.0)
+print(com)
+
+# ----------------------------------------------------------------------+-
+# Forever readlines from COM port and log them to stdout;
+# ----------------------------------------------------------------------+-
+while continue_logging:
+    rcvdBytes = com.readline()
+    if len(rcvdBytes) > 0:
+        print("line: %s" % (rcvdBytes))
+        seconds_since_last_output = 0
+    else:
+        seconds_since_last_output += 2
+        if ((seconds_since_last_output % 30) == 0):
+            print("No output for %s seconds..." % seconds_since_last_output)
+
+print("Closing COM port...")
+com.close()
+sys.exit(0)
+"""
+remote_dir_name        = '~/read-remote-serial-port'
+remote_script_filepath = '~/read-remote-serial-port/ReadFromSerialPortAndLogToStdout.py'
+
+
+
+
+# ==============================================================================#=
+# Main
+# ==============================================================================#=
+def main():
+
+    # ---------------------------------------------------------------+-
+    # Parse command line arguments.
+    # ---------------------------------------------------------------+-
+    global arg0
+    arg0 = sys.argv[0]
+    args = get_arguments(sys.argv[1:])
+
+    if ArgName.Help in args:
+        usage()
+        sys.exit(0)
+
+    if not valid_arguments(args):
+        sys.exit(1)
+
+    # -----------------------------------------------------------------------+-
+    # Apply args to remote script using substitution.
+    # -----------------------------------------------------------------------+-
+    global remote_script
+    remote_script = re.sub( '__serial_port__',  args[ArgName.Dev],  remote_script)
+    remote_script = re.sub( '__baudrate__',  '115200',  remote_script)
+
+    # -----------------------------------------------------------------------+-
+    # Create a directory, as needed, in the user's home dir on the remote host;
+    # -----------------------------------------------------------------------+-
+    if not create_remote_dir(args[ArgName.Remote], remote_dir_name):
+        sys.exit(1)
+
+    # ----------------------------------------------------------------------+-
+    # Copy into that directory the script to be run on the remote host;
+    # ----------------------------------------------------------------------+-
+    if not copy_remote_script(args[ArgName.Remote]):
+        sys.exit(1)
+
+    # ----------------------------------------------------------------------+-
+    # Run the remote script on the remote host,
+    # and stream its output to stdout on the local host;
+    # ----------------------------------------------------------------------+-
+    if not stream_output_from_remote_process(args[ArgName.Remote], remote_script_filepath):
+        print("Remote command failed")
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+# Check for main scope and run main if so.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+if __name__ == "__main__":
+    main()
+
+
+
+'''
+# for testing...
+alternate_remote_script="""\
+#!/usr/bin/env python3
+
+import sys
+import time
+
+print("hello: Starting... ")
+
+for x in range(0, 8):
+    time.sleep(0.5)
+    print("We are here! %d" % (x))
+
+print("hello: Finished.")
+
+sys.exit(0)
+'''
+

@@ -42,7 +42,7 @@ SPDX-License-Identifier: MIT-0
 // Defines how long to wait between blinkies;
 // Volatile because this is changed by the button ISR.
 // -----------------------------------------------------+-
-static volatile int32_t  Blinky_Delay = 0x0007FFFF;
+static volatile int32_t  Blinky_Delay = 0x00FFFFFF;
 
 // -------------------------------------------------------------+-
 // Flag to toggle when button is pressed;
@@ -143,15 +143,11 @@ static void user_button_config(void)
 // -----------------------------------------------------------------------------+-
 static void user_button_callback(void)
 {
-    LL_GPIO_ResetOutputPin(   GPIOC, LL_GPIO_PIN_0);  // Red LED
-    LL_GPIO_ResetOutputPin(   GPIOC, LL_GPIO_PIN_1);  // Green LED
-    LL_GPIO_ResetOutputPin(   GPIOC, LL_GPIO_PIN_2);  // Blue LED
-    LL_GPIO_ResetOutputPin(   GPIOC, LL_GPIO_PIN_3);  // Yellow LED
-
+    Blinky_Delay -= 0xFF;
     if( Blinky_Delay < 0)
     {
         Trace_Green_Toggle();
-        Blinky_Delay = 0x0007FFFF;
+        Blinky_Delay = 0x00FFFFFF;
     }
 
     /* Start transfer only if not already ongoing */
@@ -162,6 +158,7 @@ static void user_button_callback(void)
 
     // Toggle button press flag;
     toggle_button_press ^= 1;
+
 }
 
 
@@ -275,27 +272,9 @@ int main(void)
 
     while(1)
     {
-        Trace_OnBrdGreen_On();
-        Trace_Blue_Off();
+        Trace_Yellow_Toggle();
 
-        for( uint32_t i=0; i<0x000000FF; i++) {
-
-            // Blinking blue and green;
-            Trace_Blue_Toggle();
-            Trace_OnBrdGreen_Toggle();
-
-            // Busy wait to delay;
-            // Duration can vary depending on delay value;
-            for( uint32_t i=0; i<Blinky_Delay; i++) {};
-        }
-
-        // Trace_Yellow_On();
-        Trace_OnBrdGreen_On();
-        for( uint32_t i=0; i<0x00F77777; i++) {};
-
-        // Trace_Yellow_Off();
-        Trace_OnBrdGreen_Off();
-        for( uint32_t i=0; i<0x00700000; i++) {};
+        for( uint32_t i=0; i<Blinky_Delay; i++) {};
     }
 }
 

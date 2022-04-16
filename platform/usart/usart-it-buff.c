@@ -23,10 +23,10 @@
 
 #include <stdbool.h>
 
-// @@@@@ REMOVE THIS
-#include "apps/usart/main.h"
-// @@@@@ REMOVE THIS
+// Project dependencies
+#include "core/swtrace/swtrace-led.h"
 
+// STM32 Low Level Drivers
 #include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_bus.h"
 #include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_rcc.h"
 #include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_gpio.h"
@@ -140,6 +140,7 @@ static void tx_data_available(void)
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 static void usart_tdr_empty(void)
 {
+    Trace_Red_On();
     if(rb_is_empty(&rb_usart_tx)) {
         // does not exist @@@@@@@@@@@@@@ LL_USART_ClearFlag_TXE(USART2);
         LL_USART_DisableIT_TXE(USART2);
@@ -149,6 +150,7 @@ static void usart_tdr_empty(void)
         uint8_t next_byte = rb_read_byte_from_head(&rb_usart_tx);
         LL_USART_TransmitData8(USART2, next_byte);
     }
+    Trace_Red_Off();
 };
 
 // static void usart_rdr_notempty(void)
