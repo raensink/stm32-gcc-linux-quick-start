@@ -71,14 +71,32 @@ uint32_t USART_IT_BUFF_Tx_Slots_Available(void);
 // -----------------------------------------------------------------------------+-
 // Function pointer type for the data available callback;
 // -----------------------------------------------------------------------------+-
-typedef void (*USART_IT_BUFF_Rx_Data_Available_Callback)(uint32_t len, bool newline);
+typedef void (*USART_IT_BUFF_Rx_Data_Available_Callback)(uint32_t len, bool eol);
+
 
 // -----------------------------------------------------------------------------+-
-// Configure the RX side of the USART
+// Register the 'data available' callback;
+// The given function will be called when there is
+// Rx data available for consumption;
 // -----------------------------------------------------------------------------+-
 void USART_IT_BUFF_Rx_Set_Callback(USART_IT_BUFF_Rx_Data_Available_Callback func_ptr);
-void USART_IT_BUFF_Rx_Set_Newline_Detect(bool on_or_off);
+
+
+// -----------------------------------------------------------------------------+-
+// This USART module can be configured to invoke
+// the callback when it receives a Carriage Return character;
+// -----------------------------------------------------------------------------+-
+void USART_IT_BUFF_Rx_Set_EOL_Detect(bool on_or_off);
+
+
+// -----------------------------------------------------------------------------+-
+// This USART module can be configured to invoke
+// the callback when the number of buffered characters
+// exceeds the given threshold relative to the full size
+// of the module's internal ring buffer.
+// -----------------------------------------------------------------------------+-
 void USART_IT_BUFF_Rx_Set_Threshold_Detect(uint8_t percentage_full);
+
 
 // -----------------------------------------------------------------------------+-
 // Get Line

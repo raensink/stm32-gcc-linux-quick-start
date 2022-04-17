@@ -23,6 +23,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 // Project dependencies
 #include "core/swtrace/swtrace-led.h"
@@ -72,6 +73,28 @@ static ring_buffer rb_usart_rx = {
     .head = 0,
 };
 
+// ---------------------------------------------------------------------+-
+// The 'Rx Data Available' callback as registered by the application;
+// ---------------------------------------------------------------------+-
+USART_IT_BUFF_Rx_Data_Available_Callback data_avail = NULL;
+
+// ---------------------------------------------------------------------+-
+// Rx CR detection flag;
+// If set, the Rx side will, when it receives a Carriage Return,
+// invoke the data available callback.
+// The intent here is to support a command line interface
+// where the end of an input line is delimited by a CR character.
+// ---------------------------------------------------------------------+-
+static bool Rx_Detect_EOL = false;
+
+// ---------------------------------------------------------------------+-
+// Rx Buffer Threshold;
+// If not zero,
+// the Rx side will invoke the data available callback
+// when the number of bytes in the ring buffer exceeds this value;
+// ---------------------------------------------------------------------+-
+static uint32_t Rx_Buffer_Threshold = 0U;
+
 
 // =============================================================================================#=
 // Private Internal Functions
@@ -98,6 +121,11 @@ static uint32_t rb_bytes_available( ring_buffer *rb )
 static uint32_t rb_slots_available( ring_buffer *rb )
 {
     return rb->size - rb_bytes_available(rb);
+};
+
+static uint32_t rb_size( ring_buffer *rb )
+{
+    return rb->size;
 };
 
 static bool rb_is_empty( ring_buffer *rb )
@@ -132,14 +160,13 @@ static uint8_t rb_read_byte_from_head( ring_buffer *rb )
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 static void tx_data_available(void)
 {
-    // re-enable the TXE interrupt
-    // Our working theory is that if the TDR is empty (TXE=1) at the time we enable this interrupt,
-    // then the USART peripheral will generate the USART interrupt handler;
-    // We'll see if it works like we hope it does.
+    // Re-Enable the TXE interrupt
+    // Our understanding is that if the TDR is empty (TXE=1) at the time we enable this interrupt,
+    // then the USART peripheral will invoke the USART interrupt handler;
     //
-    // If this interrupt is already enabled,
-    // then the USART interrupt handler is already running or
-    // it will run when the TDR becomes empty again.
+    // If this interrupt happens to be already enabled,
+    // then either the USART interrupt handler is already executing or
+    // it will execute when the TDR becomes empty again.
     LL_USART_EnableIT_TXE(USART2);
 };
 
@@ -173,15 +200,24 @@ static void usart_rdr_notempty(void)
 
     if(rb_is_full(&rb_usart_rx)) {
         // All we can do is throw the byte away;
-        // Perhaps someday we can increment an error counter here;
+        // Perhaps someday we can increment an error counter here; TODO
     }
     else {
         rb_write_byte_to_tail( &rb_usart_rx, rx_byte );
+
+        if(data_avail == NULL) return;   // no callback;
+
+        // how many bytes are in the buffer waiting to be consumed by the application;
+        uint32_t bytes_avail = rb_bytes_available(&rb_usart_rx);
+
         Trace_Blue_Toggle();
 
-        // @@@ TODO @@@
-        //    invoke callback if either: rx_byte is a newline
-        //    or: if number of bytes in rb exceeds some threshold
+        if(Rx_Detect_EOL && rx_byte == '\r') {
+            data_avail(bytes_avail, true);
+        }
+        else if( Rx_Buffer_Threshold > 0U && bytes_avail > Rx_Buffer_Threshold) {
+            data_avail(bytes_avail, false);
+        }
     }
 }
 
@@ -189,6 +225,10 @@ static void usart_rdr_notempty(void)
 // =============================================================================================#=
 // Public API Functions
 // =============================================================================================#=
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// TX API Functions
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // Write the content of the given buffer into
@@ -255,10 +295,42 @@ uint32_t USART_IT_BUFF_Rx_Get_Line(
 }
 
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// -----------------------------------------------------------------------------+-
+// Register the 'data available' callback;
+// -----------------------------------------------------------------------------+-
+void USART_IT_BUFF_Rx_Set_Callback(USART_IT_BUFF_Rx_Data_Available_Callback func_ptr)
+{
+    data_avail = func_ptr;
+    return;
+}
+
+
+// -----------------------------------------------------------------------------+-
+// Configured Rx callback criteria;
+// -----------------------------------------------------------------------------+-
+void USART_IT_BUFF_Rx_Set_EOL_Detect(bool on_or_off)
+{
+    Rx_Detect_EOL = on_or_off;
+    return;
+}
+
+
+// -----------------------------------------------------------------------------+-
+// Configured Rx callback criteria;
+// -----------------------------------------------------------------------------+-
+void USART_IT_BUFF_Rx_Set_Threshold_Detect(uint8_t percentage_full)
+{
+    if(percentage_full<100) {
+        Rx_Buffer_Threshold = percentage_full/100 * rb_size(&rb_usart_rx);
+    }
+    return;
+}
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // USART Peripheral Interrupt
 // This should be invoked from the USART*_IRQHandler functions as appropriate.
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 void USART_ISR(USART_Periph_Num given_usart)
 {
     // TXE Event Flag => Transmit Data Register Empty;

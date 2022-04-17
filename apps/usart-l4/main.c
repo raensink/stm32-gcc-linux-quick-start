@@ -56,11 +56,6 @@ static volatile uint8_t toggle_button_press = 0;
 // -------------------------------------------------------------+-
 static volatile uint8_t next_char_idx = 0;
 
-// -----------------------------------------------------------------------------+-
-// A constant message string to be sent on
-// the UART when the button is pressed;
-// -----------------------------------------------------------------------------+-
-static uint8_t *TX_Message_String = (uint8_t *)"0123456789ABCDEF\r\n";
 
 // -----------------------------------------------------------------------------+-
 // User Button Configuration
@@ -154,23 +149,34 @@ static void user_button_callback(void)
         Blinky_Delay = 0x0000FFFF;
     }
 
-    // @@@ /* Start transfer only if not already ongoing */
-    // @@@ if (next_char_idx == 0)   // @@@@ remove if????
-    // @@@ {
-        // @@@ USART_IT_BUFF_Tx_Write_Best_Effort(TX_Message_String, strlen((char *)TX_Message_String));
-    // @@@ }
-
     uint32_t byte_count = USART_IT_BUFF_Rx_Get_Line(
         Input_Buffer, Input_Buffer_Len
     );
     if( byte_count > 0) {
         USART_IT_BUFF_Tx_Write_Best_Effort(Input_Buffer, byte_count);
     }
-    else {
-    }
 
-    // Toggle button press flag;
+    // Toggle button press flag; not really used;
     toggle_button_press ^= 1;
+}
+
+// -----------------------------------------------------------------------------+-
+// Rx Data Available Callback;
+// -----------------------------------------------------------------------------+-
+static void rx_data_avail_callback(uint32_t len, bool eol)
+{
+    Trace_Red_Toggle();
+
+    uint32_t byte_count = USART_IT_BUFF_Rx_Get_Line(
+        Input_Buffer, Input_Buffer_Len
+    );
+    if( byte_count > 0) {
+        USART_IT_BUFF_Tx_Write_Best_Effort(Input_Buffer, byte_count);
+        if(eol) {
+            // Add a Newline(LF) to the CR, replacing the NULL;
+            USART_IT_BUFF_Tx_Write_Best_Effort((uint8_t *)"\n", 1);
+        }
+    }
 }
 
 
@@ -279,14 +285,17 @@ int main(void)
 
     user_button_config();
 
+    USART_IT_BUFF_Rx_Set_Callback(rx_data_avail_callback);
+    USART_IT_BUFF_Rx_Set_EOL_Detect(true);
+    USART_IT_BUFF_Rx_Set_Threshold_Detect(10U); // ten percent
     USART_IT_BUFF_Module_Init( MCU_Clock_Get_PCLK1_Frequency_Hz() );
 
     while(1)
     {
         // Trace_Yellow_On();
-        for( uint32_t i=0; i<0xFFFFF; i++) {};
+        // for( uint32_t i=0; i<0xFFFFF; i++) {};
         // Trace_Yellow_Off();
-        for( uint32_t i=0; i<0xFFFFF; i++) {};
+        // for( uint32_t i=0; i<0xFFFFF; i++) {};
     }
 }
 
