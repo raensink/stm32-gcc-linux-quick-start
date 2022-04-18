@@ -20,12 +20,13 @@
 # Application
 # ----------------------------------------------------------------------+-
 SRC_FILES  = apps/usart-l4/main.c
-INC_DIRS   = apps/usart-l4
+INC_DIRS   = apps/usart-l4/ring-buffer.c
 
 # ----------------------------------------------------------------------+-
 # Platform
 # ----------------------------------------------------------------------+-
 SRC_FILES += platform/usart/usart-it-cli.c
+SRC_FILES += platform/util/ring-buffer.c
 
 # ----------------------------------------------------------------------+-
 # Core

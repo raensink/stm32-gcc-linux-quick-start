@@ -49,14 +49,13 @@ void USART_IT_CLI_ISR(void);
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 
 // -----------------------------------------------------------------------------+-
-// CLI Put Best Effort
+// CLI PUT BEST EFFORT
 //
-// Write the content of the given buffer into
-// the module's USART TX ring buffer.
+// Write the given content into the Client Tx Queue (ring buffer);
 // Warning: when there is insufficent space available in the ring buffer,
 // the given content is silently thrown away;
-// If you cannot allow your content to be lost, and you can afford to wait,
-// use the subsequent API call to first check for available TX slots.
+// If the client cannot allow it's content to be lost, and if it can afford to wait,
+// use the 'slots available' API call to first check for available TX slots.
 // -----------------------------------------------------------------------------+-
 void USART_IT_CLI_Put_Best_Effort(uint8_t *buff_addr, uint8_t buff_len);
 
@@ -79,13 +78,13 @@ uint32_t USART_IT_CLI_Tx_Slots_Available(void);
 typedef void (*USART_IT_CLI_Input_Available_Callback)(uint32_t len);
 
 // -----------------------------------------------------------------------------+-
-// Set Rx Callback
+// Register Rx Callback
 //
 // Register the 'data available' callback;
 // The given function will be called when there is
 // command line input data available for consumption;
 // -----------------------------------------------------------------------------+-
-void USART_IT_CLI_Set_Rx_Callback(USART_IT_CLI_Input_Available_Callback func_ptr);
+void USART_IT_CLI_Register_Rx_Callback(USART_IT_CLI_Input_Available_Callback func_ptr);
 
 // -----------------------------------------------------------------------------+-
 // Get Line
@@ -106,5 +105,4 @@ uint32_t USART_IT_CLI_Get_Line(
     uint8_t  *input_buffer,
     uint32_t  input_buffer_len
 );
-
 

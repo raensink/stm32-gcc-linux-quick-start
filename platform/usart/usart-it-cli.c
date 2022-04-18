@@ -42,7 +42,7 @@ USART_IT_CLI_Input_Available_Callback input_data_avail = NULL;
 // Size must be a power of two;
 // -----------------------------------------------------------------------------+-
 static uint8_t client_tx_queue_buff[256];   // TX chars from the client layer;
-static uint8_t echo_queue_buff[32];         // RX chars from the user CLI; 
+static uint8_t echo_queue_buff[32];         // RX chars from the user CLI;
 
 static Ring_Buffer client_tx_queue = {
     .buff = client_tx_queue_buff,
@@ -59,15 +59,170 @@ static Ring_Buffer echo_queue = {
 };
 
 
+// -----------------------------------------------------------------------------+-
+// Pending Command Double Buffer (PCB)
+// -----------------------------------------------------------------------------+-
+#define MAX_CMD_LEN  (128)
+#define NONE_BUFF     (-1)
+#define A_BUFF         (0)
+#define B_BUFF         (1)
+static uint8_t Pending_Command_Buff[2][MAX_CMD_LEN];
+static int8_t  Command_In_Progress = A_BUFF;
+static int8_t  Command_Ready       = NONE_BUFF;
+static int8_t  Refresh_Idx         = -1;
+
+
+// -----------------------------------------------------------------------------+-
+// The TXE ISR needs a state model to keep track of
+// what it should be doing on each invocation.
+// -----------------------------------------------------------------------------+-
+typedef enum {
+    eTxState_TXE_Disabled,
+    eTxState_CLI_Refresh,
+    eTxState_Echo_Queue,
+    eTxState_Client_Queue,
+} eTxState;
+
+static eTxState TXE_ISR_State = eTxState_TXE_Disabled;
+
+
 // =============================================================================================#=
 // Private Internal Functions
 // =============================================================================================#=
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+static void pcb_add_new_char(uint8_t new_byte)
+{
+    static uint8_t tail_idx = 0;
+
+    // Test for 'Enter' keypress
+    if(new_byte == '\r') {
+        new_byte == '\n';    // around here, we prefer newlines as our EOL delimiters;
+    }
+    Pending_Command_Buff[Command_In_Progress][tail_idx++] = new_byte;
+
+    // Process EOL
+    //
+    // TODO: Future, process backspace
+}
+
+static eTxState handle_txe_disabled_state(uint8_t *tx_byte)
+{
+    eTxState next_state;
+    *tx_byte = '\0';
+
+    // if echo queue not empty
+    //     service the echo queue
+    //     *tx_byte = char to be echo'd to CLI
+    //     next_state = eTxState_Echo_Queue;
+
+    // else if client queue not empty
+    //     service the client queue
+    //     *tx_byte = next tx char xmit on wire
+    //     next_state = eTxState_Client_Queue;
+
+    // else
+    //     // Not sure why we got called but there is nothing to do;
+    //     next_state = eTxState_TXE_Disable;
+
+    return next_state;
+}
+
+static eTxState handle_cli_refresh_state(uint8_t *tx_byte)
+{
+    eTxState next_state;
+    *tx_byte = '\0';
+
+    // get next refresh char
+    // if char
+    //     *tx_byte = next refresh char;
+    //     next_state = eTxState_CLI_Refesh;
+    // else
+    //     service the echo queue;
+    //     *tx_byte = char to be echo'd to CLI;
+    //     next_state = eTxState_Echo_Queue;
+
+    return next_state;
+}
+
+static eTxState handle_echo_queue_state(uint8_t *tx_byte)
+{
+    eTxState next_state;
+    *tx_byte = '\0';
+
+    // get next echo char
+    // if char
+    //     service the echo queue;
+    //     *tx_byte = char to be echo'd to CLI;
+    //     next_state = eTxState_Echo_Queue;
+    // else
+    //     if client queue not empty
+    //         service the client queue
+    //         *tx_byte = next tx char xmit on wire
+    //         next_state = eTxState_Client_Queue;
+    //     else
+    //         next_state = eTxState_TXE_Disable;
+    //
+    // handle LF needed
+
+    return next_state;
+}
+
+static eTxState handle_client_queue_state(uint8_t *tx_byte)
+{
+    eTxState next_state;
+    *tx_byte = '\0';
+
+    // get next client char
+    // if char
+    //     *tx_byte = next tx char xmit on wire
+    //     next_state = eTxState_Client_Queue;
+    // else
+    //     if echo queue not empty
+    //         service CLI Refresh
+    //         *tx_byte = next refresh char
+    //         next_state = eTxState_CLI_Refresh;
+    //     else
+    //         next_state = eTxState_TXE_Disable;
+    //
+    // handle LF needed
+
+    return next_state;
+}
+
+// -----------------------------------------------------------------------------+-
 // Helper function to do the needful when the USART TDR is empty;
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// -----------------------------------------------------------------------------+-
 static void usart_tdr_empty(void)
 {
+    eTxState next_state;
+    uint8_t  tx_byte;
+
+    switch (TXE_ISR_State) {
+
+    case eTxState_TXE_Disabled:
+        next_state = handle_txe_disabled_state(&tx_byte);
+        break;
+
+    case eTxState_CLI_Refresh:
+        next_state = handle_cli_refresh_state(&tx_byte);
+        break;
+
+    case eTxState_Echo_Queue:
+        next_state = handle_echo_queue_state(&tx_byte);
+        break;
+
+    case eTxState_Client_Queue:
+        next_state = handle_client_queue_state(&tx_byte);
+        break;
+
+    default:
+        // ADD ASSERT HERE;
+        break;
+    }
+    // XMIT tx_byte unless disabled;
+    // set next state
+
+
     // @@@ if(rb_is_empty(&rb_usart_tx)) {
         // Disable the TXE interrupt as there is no more TX data to send;
         // It appears there is no way to explicitly clear TXE active bit?
@@ -82,38 +237,45 @@ static void usart_tdr_empty(void)
     return;
 }
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// -----------------------------------------------------------------------------+-
 // USART RDR Not Empty;
 // Helper function to do the needful for the ISR;
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+//
+// On the RX side of things, the ISR simply puts
+// each received character into the echo queue and
+// then let the TX ISR handle all of the processing.
+// -----------------------------------------------------------------------------+-
 static void usart_rdr_notempty(void)
 {
     // Read the RX byte; this also clears the RXNE bit;
-    // @@@ uint8_t rx_byte = LL_USART_ReceiveData8(USART2);
+    uint8_t rx_byte = LL_USART_ReceiveData8(USART2);
 
-    // @@@ if(rb_is_full(&rb_usart_rx)) {
+    if(RB_Is_Full(&echo_queue)) {
         // All we can do is throw the byte away;
         // Perhaps someday we can increment an error counter here; TODO
-    // @@@ }
-    // @@@ else {
-        // @@@ rb_write_byte_to_tail( &rb_usart_rx, rx_byte );
-
-        // @@@ if(data_avail == NULL) return;   // no callback;
-
-        // how many bytes are in the buffer waiting to be consumed by the application;
-        // @@@ uint32_t bytes_avail = rb_bytes_available(&rb_usart_rx);
-
-        // @@@ Trace_Blue_Toggle();
-
-        // @@@ if(Rx_Detect_EOL && rx_byte == '\r') {
-            // @@@ data_avail(bytes_avail, true);
-        // @@@ }
-        // @@@ else if( Rx_Buffer_Threshold > 0U && bytes_avail > Rx_Buffer_Threshold) {
-            // @@@ data_avail(bytes_avail, false);
-        // @@@ }
-    // @@@ }
+    }
+    else {
+        RB_Write_Byte_To_Tail( &echo_queue, rx_byte );
+    }
     return;
 }
+
+// -----------------------------------------------------------------------------+-
+// Helper function to signal to the USART peripheral
+// that new TX data is available for transmission onto the wire;
+// -----------------------------------------------------------------------------+-
+static void tx_data_available(void)
+{
+    // Re-Enable the TXE interrupt
+    // Our understanding is that if the TDR is empty (TXE=1) at the time we enable this interrupt,
+    // then the USART peripheral will invoke the USART interrupt handler;
+    //
+    // If this interrupt happens to be already enabled,
+    // then either the USART interrupt handler is already executing or
+    // it will execute when the TDR becomes empty again.
+
+    LL_USART_EnableIT_TXE(USART2);
+};
 
 // =============================================================================================#=
 // Public API Functions
@@ -123,6 +285,30 @@ static void usart_rdr_notempty(void)
 // TX API Functions
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 
+// -----------------------------------------------------------------------------+-
+// PUT BEST EFFORT
+//
+// Write the given content into the Client Tx Queue (ring buffer);
+// -----------------------------------------------------------------------------+-
+void USART_IT_CLI_Put_Best_Effort(uint8_t *given_buff_addr, uint8_t given_buff_len)
+{
+    uint32_t num_slots = RB_Slots_Available(&client_tx_queue);
+
+    if (num_slots < given_buff_len) {
+        // insufficient space for given content;
+        // buffer content is lost;
+        return;
+    }
+
+    // Copy given content into buffer;
+    for(int idx=0; idx<given_buff_len; idx++) {
+        RB_Write_Byte_To_Tail( &client_tx_queue, given_buff_addr[idx] );
+    }
+
+    tx_data_available();
+    return;
+};
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // RX API Functions
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
@@ -130,7 +316,7 @@ static void usart_rdr_notempty(void)
 // -----------------------------------------------------------------------------+-
 // Register the 'data available' callback;
 // -----------------------------------------------------------------------------+-
-void USART_IT_CLI_Set_Rx_Callback(USART_IT_CLI_Input_Available_Callback given_func_ptr)
+void USART_IT_CLI_Register_Rx_Callback(USART_IT_CLI_Input_Available_Callback given_func_ptr)
 {
     input_data_avail = given_func_ptr;
     return;
@@ -175,11 +361,11 @@ uint32_t USART_IT_CLI_Get_Line(
 // General Module APIs
 // =============================================================================================#=
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// -----------------------------------------------------------------------------+-
 // USART PERIPHERAL INTERRUPT
 //
 // This should be invoked from the appropriate USART*_IRQHandler.
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// -----------------------------------------------------------------------------+-
 void USART_IT_CLI_ISR(void)
 {
     // TXE Event Flag => Transmit Data Register Empty;
@@ -207,7 +393,7 @@ void USART_IT_CLI_ISR(void)
     }
 };
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// -----------------------------------------------------------------------------+-
 // MODULE INIT
 //
 // One-time startup initialization for this software module;
@@ -216,7 +402,7 @@ void USART_IT_CLI_ISR(void)
 //     USART2
 //     TX  PA2
 //     RX  PA3
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// -----------------------------------------------------------------------------+-
 void USART_IT_CLI_Module_Init(uint32_t given_PCLK1_frequency_in_hertz)
 {
     // Configure GPIO Pins
@@ -295,83 +481,4 @@ void USART_IT_CLI_Module_Init(uint32_t given_PCLK1_frequency_in_hertz)
     // LL_USART_DisableIT_TXE(USART2);
 };
 
-
-#if 0
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-
-
-// =============================================================================================#=
-// Private Internal Functions
-// =============================================================================================#=
-
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// Helper function to signal to the USART module
-// that new data is available in its Tx ring buffer;
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-static void tx_data_available(void)
-{
-    // Re-Enable the TXE interrupt
-    // Our understanding is that if the TDR is empty (TXE=1) at the time we enable this interrupt,
-    // then the USART peripheral will invoke the USART interrupt handler;
-    //
-    // If this interrupt happens to be already enabled,
-    // then either the USART interrupt handler is already executing or
-    // it will execute when the TDR becomes empty again.
-    LL_USART_EnableIT_TXE(USART2);
-};
-
-
-
-// =============================================================================================#=
-// Public API Functions
-// =============================================================================================#=
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// TX API Functions
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// RX APIs
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// Write the content of the given buffer into
-// the USART TX ring buffer provided by this module;
-// When there is insufficent space available in the ring buffer,
-// the given content is silently thrown away;
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-void USART_IT_BUFF_Tx_Write_Best_Effort(uint8_t *buff_addr, uint8_t buff_len)
-{
-    uint32_t num_slots = rb_slots_available( &rb_usart_tx );
-
-    if (num_slots < buff_len) {
-        // insufficient space for given buffer;
-        // buffer content is lost;
-        return;
-    }
-
-    // Copy given content into buffer;
-    for(int idx=0; idx<buff_len; idx++) {
-        rb_write_byte_to_tail( &rb_usart_tx, buff_addr[idx] );
-    }
-
-    tx_data_available();
-    return;
-};
-
-
-
-
-
-
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-#endif
 
