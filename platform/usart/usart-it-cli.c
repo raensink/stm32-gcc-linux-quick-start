@@ -11,12 +11,14 @@
 // For example: the TXE bit in USART_ISR and TXEIE in USART_CR1.
 // See Figure 443 on page 1383 of the reference manual.
 //
+// SPDX-License-Identifier: MIT-0
 // =============================================================================================#=
 
 #include "platform/usart/usart-it-cli.h"
 
 // Project dependencies
 #include "core/swtrace/swtrace-led.h"
+#include "platform/util/ring-buffer.h"
 
 // STM32 Low Level Drivers
 #include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_bus.h"
@@ -42,14 +44,14 @@ USART_IT_CLI_Input_Available_Callback input_data_avail = NULL;
 static uint8_t client_tx_queue_buff[256];   // TX chars from the client layer;
 static uint8_t echo_queue_buff[32];         // RX chars from the user CLI; 
 
-static ring_buffer client_tx_queue = {
+static Ring_Buffer client_tx_queue = {
     .buff = client_tx_queue_buff,
     .size = sizeof(client_tx_queue_buff),
     .tail = 0,
     .head = 0,
 };
 
-static ring_buffer echo_queue = {
+static Ring_Buffer echo_queue = {
     .buff = echo_queue_buff,
     .size = sizeof(echo_queue_buff),
     .tail = 0,
@@ -122,7 +124,7 @@ static void usart_rdr_notempty(void)
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// RX APIs
+// RX API Functions
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 
 // -----------------------------------------------------------------------------+-
@@ -132,6 +134,40 @@ void USART_IT_CLI_Set_Rx_Callback(USART_IT_CLI_Input_Available_Callback given_fu
 {
     input_data_avail = given_func_ptr;
     return;
+}
+
+// -----------------------------------------------------------------------------+-
+// GET LINE
+// -----------------------------------------------------------------------------+-
+uint32_t USART_IT_CLI_Get_Line(
+    uint8_t  *input_buffer,
+    uint32_t  input_buffer_len)
+{
+    // allow room for the nul terminating char;
+    // @@@ int32_t  available_len = input_buffer_len-1;
+    uint32_t idx=0;
+
+    // @@@ if(available_len <= 0) {
+        // No room in the given buffer;
+        // @@@ input_buffer[0] = '\0';
+    // @@@ }
+    // @@@ else if(rb_is_empty(&rb_usart_rx)) {
+        // No input available;
+        // @@@ input_buffer[0] = '\0';
+    // @@@ }
+    // @@@ else {
+        // @@@ while(idx<available_len) {
+            // @@@ uint8_t next_byte = rb_read_byte_from_head(&rb_usart_rx);
+            // @@@ input_buffer[idx++] = next_byte;
+            // @@@ if(next_byte == '\n') break;
+            // @@@ if(rb_is_empty(&rb_usart_rx)) break;
+        // @@@ }
+        // @@@ input_buffer[idx] = '\0';
+    // @@@ }
+    // Trace_Red_Toggle();
+    // Trace_Green_Toggle();
+    // Trace_Yellow_Toggle();
+    return idx;
 }
 
 
@@ -328,44 +364,6 @@ void USART_IT_BUFF_Tx_Write_Best_Effort(uint8_t *buff_addr, uint8_t buff_len)
     return;
 };
 
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// RX API Functions
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-
-// -----------------------------------------------------------------------------+-
-// Get Line
-// -----------------------------------------------------------------------------+-
-uint32_t USART_IT_BUFF_Rx_Get_Line(
-    uint8_t  *input_buffer,
-    uint32_t  input_buffer_len)
-{
-    // allow room for the nul terminating char;
-    int32_t  available_len = input_buffer_len-1;
-    uint32_t idx=0;
-
-    if(available_len <= 0) {
-        // No room in the given buffer;
-        input_buffer[0] = '\0';
-    }
-    else if(rb_is_empty(&rb_usart_rx)) {
-        // No input available;
-        input_buffer[0] = '\0';
-    }
-    else {
-        while(idx<available_len) {
-            uint8_t next_byte = rb_read_byte_from_head(&rb_usart_rx);
-            input_buffer[idx++] = next_byte;
-            if(next_byte == '\n') break;
-            if(rb_is_empty(&rb_usart_rx)) break;
-        }
-        input_buffer[idx] = '\0';
-    }
-    // Trace_Red_Toggle();
-    // Trace_Green_Toggle();
-    // Trace_Yellow_Toggle();
-    return idx;
-}
 
 
 

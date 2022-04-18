@@ -12,6 +12,8 @@
 //
 // TX Description:
 // RX Description
+//
+// SPDX-License-Identifier: MIT-0
 // =============================================================================================#=
 
 #pragma once
