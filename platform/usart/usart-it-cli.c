@@ -29,100 +29,56 @@
 // Private Internal Types and Data
 // =============================================================================================#=
 
+// -----------------------------------------------------------------------------+-
+// Callback for 'input data available' as
+// registered by the client application layer.
+// -----------------------------------------------------------------------------+-
+USART_IT_CLI_Input_Available_Callback input_data_avail = NULL;
 
-#if 0
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+// -----------------------------------------------------------------------------+-
+// Internal Ring Buffers
+// Size must be a power of two;
+// -----------------------------------------------------------------------------+-
+static uint8_t client_tx_queue_buff[256];   // TX chars from the client layer;
+static uint8_t echo_queue_buff[32];         // RX chars from the user CLI; 
 
-
-
-
-
-// ---------------------------------------------------------------------+-
-// Memory allocation for the usart TX and RX ring buffers;
-// Size MUST BE a POWER of TWO;
-// ---------------------------------------------------------------------+-
-static uint8_t usart_tx_buffer[256];
-static uint8_t usart_rx_buffer[256];
-
-static ring_buffer rb_usart_tx = {
-    .buff = usart_tx_buffer,
-    .size = sizeof(usart_tx_buffer),
+static ring_buffer client_tx_queue = {
+    .buff = client_tx_queue_buff,
+    .size = sizeof(client_tx_queue_buff),
     .tail = 0,
     .head = 0,
 };
 
-static ring_buffer rb_usart_rx = {
-    .buff = usart_rx_buffer,
-    .size = sizeof(usart_rx_buffer),
+static ring_buffer echo_queue = {
+    .buff = echo_queue_buff,
+    .size = sizeof(echo_queue_buff),
     .tail = 0,
     .head = 0,
 };
-
-// ---------------------------------------------------------------------+-
-// The 'Rx Data Available' callback as registered by the application;
-// ---------------------------------------------------------------------+-
-USART_IT_BUFF_Rx_Data_Available_Callback data_avail = NULL;
-
-// ---------------------------------------------------------------------+-
-// Rx CR detection flag;
-// If set, the Rx side will, when it receives a Carriage Return,
-// invoke the data available callback.
-// The intent here is to support a command line interface
-// where the end of an input line is delimited by a CR character.
-// ---------------------------------------------------------------------+-
-static bool Rx_Detect_EOL = false;
-
-// ---------------------------------------------------------------------+-
-// Rx Buffer Threshold;
-// If not zero,
-// the Rx side will invoke the data available callback
-// when the number of bytes in the ring buffer exceeds this value;
-// ---------------------------------------------------------------------+-
-static uint32_t Rx_Buffer_Threshold = 0U;
 
 
 // =============================================================================================#=
 // Private Internal Functions
 // =============================================================================================#=
 
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// Helper function to signal to the USART module
-// that new data is available in its Tx ring buffer;
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-static void tx_data_available(void)
-{
-    // Re-Enable the TXE interrupt
-    // Our understanding is that if the TDR is empty (TXE=1) at the time we enable this interrupt,
-    // then the USART peripheral will invoke the USART interrupt handler;
-    //
-    // If this interrupt happens to be already enabled,
-    // then either the USART interrupt handler is already executing or
-    // it will execute when the TDR becomes empty again.
-    LL_USART_EnableIT_TXE(USART2);
-};
-
-
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // Helper function to do the needful when the USART TDR is empty;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 static void usart_tdr_empty(void)
 {
-    if(rb_is_empty(&rb_usart_tx)) {
+    // @@@ if(rb_is_empty(&rb_usart_tx)) {
         // Disable the TXE interrupt as there is no more TX data to send;
         // It appears there is no way to explicitly clear TXE active bit?
-        LL_USART_DisableIT_TXE(USART2);
-    }
-    else {
+        // @@@ LL_USART_DisableIT_TXE(USART2);
+    // @@@ }
+    // @@@ else {
         // Write the next outgoing byte to the TDR register;
         // this will clear the TXE bit;
-        uint8_t next_byte = rb_read_byte_from_head(&rb_usart_tx);
-        LL_USART_TransmitData8(USART2, next_byte);
-    }
-};
+        // @@@ uint8_t next_byte = rb_read_byte_from_head(&rb_usart_tx);
+        // @@@ LL_USART_TransmitData8(USART2, next_byte);
+    // @@@ }
+    return;
+}
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // USART RDR Not Empty;
@@ -131,31 +87,31 @@ static void usart_tdr_empty(void)
 static void usart_rdr_notempty(void)
 {
     // Read the RX byte; this also clears the RXNE bit;
-    uint8_t rx_byte = LL_USART_ReceiveData8(USART2);
+    // @@@ uint8_t rx_byte = LL_USART_ReceiveData8(USART2);
 
-    if(rb_is_full(&rb_usart_rx)) {
+    // @@@ if(rb_is_full(&rb_usart_rx)) {
         // All we can do is throw the byte away;
         // Perhaps someday we can increment an error counter here; TODO
-    }
-    else {
-        rb_write_byte_to_tail( &rb_usart_rx, rx_byte );
+    // @@@ }
+    // @@@ else {
+        // @@@ rb_write_byte_to_tail( &rb_usart_rx, rx_byte );
 
-        if(data_avail == NULL) return;   // no callback;
+        // @@@ if(data_avail == NULL) return;   // no callback;
 
         // how many bytes are in the buffer waiting to be consumed by the application;
-        uint32_t bytes_avail = rb_bytes_available(&rb_usart_rx);
+        // @@@ uint32_t bytes_avail = rb_bytes_available(&rb_usart_rx);
 
-        Trace_Blue_Toggle();
+        // @@@ Trace_Blue_Toggle();
 
-        if(Rx_Detect_EOL && rx_byte == '\r') {
-            data_avail(bytes_avail, true);
-        }
-        else if( Rx_Buffer_Threshold > 0U && bytes_avail > Rx_Buffer_Threshold) {
-            data_avail(bytes_avail, false);
-        }
-    }
+        // @@@ if(Rx_Detect_EOL && rx_byte == '\r') {
+            // @@@ data_avail(bytes_avail, true);
+        // @@@ }
+        // @@@ else if( Rx_Buffer_Threshold > 0U && bytes_avail > Rx_Buffer_Threshold) {
+            // @@@ data_avail(bytes_avail, false);
+        // @@@ }
+    // @@@ }
+    return;
 }
-
 
 // =============================================================================================#=
 // Public API Functions
@@ -165,108 +121,30 @@ static void usart_rdr_notempty(void)
 // TX API Functions
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// Write the content of the given buffer into
-// the USART TX ring buffer provided by this module;
-// When there is insufficent space available in the ring buffer,
-// the given content is silently thrown away;
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-void USART_IT_BUFF_Tx_Write_Best_Effort(uint8_t *buff_addr, uint8_t buff_len)
-{
-    uint32_t num_slots = rb_slots_available( &rb_usart_tx );
-
-    if (num_slots < buff_len) {
-        // insufficient space for given buffer;
-        // buffer content is lost;
-        return;
-    }
-
-    // Copy given content into buffer;
-    for(int idx=0; idx<buff_len; idx++) {
-        rb_write_byte_to_tail( &rb_usart_tx, buff_addr[idx] );
-    }
-
-    tx_data_available();
-    return;
-};
-
-
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// RX API Functions
+// RX APIs
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-
-// -----------------------------------------------------------------------------+-
-// Get Line
-// -----------------------------------------------------------------------------+-
-uint32_t USART_IT_BUFF_Rx_Get_Line(
-    uint8_t  *input_buffer,
-    uint32_t  input_buffer_len)
-{
-    // allow room for the nul terminating char;
-    int32_t  available_len = input_buffer_len-1;
-    uint32_t idx=0;
-
-    if(available_len <= 0) {
-        // No room in the given buffer;
-        input_buffer[0] = '\0';
-    }
-    else if(rb_is_empty(&rb_usart_rx)) {
-        // No input available;
-        input_buffer[0] = '\0';
-    }
-    else {
-        while(idx<available_len) {
-            uint8_t next_byte = rb_read_byte_from_head(&rb_usart_rx);
-            input_buffer[idx++] = next_byte;
-            if(next_byte == '\n') break;
-            if(rb_is_empty(&rb_usart_rx)) break;
-        }
-        input_buffer[idx] = '\0';
-    }
-    // Trace_Red_Toggle();
-    // Trace_Green_Toggle();
-    // Trace_Yellow_Toggle();
-    return idx;
-}
-
 
 // -----------------------------------------------------------------------------+-
 // Register the 'data available' callback;
 // -----------------------------------------------------------------------------+-
-void USART_IT_BUFF_Rx_Set_Callback(USART_IT_BUFF_Rx_Data_Available_Callback func_ptr)
+void USART_IT_CLI_Set_Rx_Callback(USART_IT_CLI_Input_Available_Callback given_func_ptr)
 {
-    data_avail = func_ptr;
+    input_data_avail = given_func_ptr;
     return;
 }
 
 
-// -----------------------------------------------------------------------------+-
-// Configured Rx callback criteria;
-// -----------------------------------------------------------------------------+-
-void USART_IT_BUFF_Rx_Set_EOL_Detect(bool on_or_off)
-{
-    Rx_Detect_EOL = on_or_off;
-    return;
-}
+// =============================================================================================#=
+// General Module APIs
+// =============================================================================================#=
 
-
-// -----------------------------------------------------------------------------+-
-// Configured Rx callback criteria;
-// -----------------------------------------------------------------------------+-
-void USART_IT_BUFF_Rx_Set_Threshold_Detect(uint8_t percentage_full)
-{
-    if(percentage_full<100) {
-        Rx_Buffer_Threshold = percentage_full/100 * rb_size(&rb_usart_rx);
-    }
-    return;
-}
-
-
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// USART Peripheral Interrupt
-// This should be invoked from the USART*_IRQHandler functions as appropriate.
-// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-void USART_ISR(USART_Periph_Num given_usart)
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// USART PERIPHERAL INTERRUPT
+//
+// This should be invoked from the appropriate USART*_IRQHandler.
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+void USART_IT_CLI_ISR(void)
 {
     // TXE Event Flag => Transmit Data Register Empty;
     // Hardware sets this flag when data has been transferred
@@ -291,45 +169,19 @@ void USART_ISR(USART_Periph_Num given_usart)
         // which will clear the RXNE active bit;
         usart_rdr_notempty();
     }
-
-
-    // @@@ FUTURE AS NEEDED @@@
-    // @@@ if(LL_USART_IsEnabledIT_TC(USARTx_INSTANCE) && LL_USART_IsActiveFlag_TC(USARTx_INSTANCE))
-    // @@@ {
-        // @@@ LL_USART_ClearFlag_TC(USARTx_INSTANCE);
-
-        /* Call function in charge of handling end of transmission of sent character and prepare next character transmission */
-        // @@@ USART_CharTransmitComplete_Callback();
-    // @@@ }
-
-    // @@@ if(LL_USART_IsEnabledIT_ERROR(USARTx_INSTANCE) && LL_USART_IsActiveFlag_NE(USARTx_INSTANCE))
-    // @@@ {
-        /* Call Error function */
-        // @@@ USART_Error_Callback();
-    // @@@ }
 };
 
-
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-// One-time startup initialization of this module;
-// @@@@ REFACTOR @@@@
+// MODULE INIT
 //
-    // Configure USARTx
-    //
-    // as per main.h...
-    // USART is connected to the Virtual Com Port
-    //     USART2
-    //     TX  PA2
-    //     RX  PA3
-    //
-    // According to section 6.9 on page 25 of UM1724,
-    // the USART2 interface available on PA2 and PA3 of the STM32 microcontroller
-    // can be connected to ST-LINK MCU, ST morpho connector, or to ARDUINO® connector.
-    // The choice can be changed by setting the related solder bridges.
-    // By default, the USART2 communication between the target STM32 and ST-LINK MCU is enabled.
+// One-time startup initialization for this software module;
 //
+// USART is connected to the Virtual Com Port
+//     USART2
+//     TX  PA2
+//     RX  PA3
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-void USART_IT_BUFF_Module_Init(uint32_t given_PCLK1_frequency_in_hertz)
+void USART_IT_CLI_Module_Init(uint32_t given_PCLK1_frequency_in_hertz)
 {
     // Configure GPIO Pins
     //
@@ -407,50 +259,116 @@ void USART_IT_BUFF_Module_Init(uint32_t given_PCLK1_frequency_in_hertz)
     // LL_USART_DisableIT_TXE(USART2);
 };
 
+
 #if 0
-/**
-  * @brief  Function called at completion of last byte transmission
-  * @param  None
-  * @retval None
-  */
-void USART_CharTransmitComplete_Callback(void)
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+
+// =============================================================================================#=
+// Private Internal Functions
+// =============================================================================================#=
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// Helper function to signal to the USART module
+// that new data is available in its Tx ring buffer;
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+static void tx_data_available(void)
 {
-    if(next_char_idx >= strlen(TX_Message_String))
-    {
-        next_char_idx = 0;
+    // Re-Enable the TXE interrupt
+    // Our understanding is that if the TDR is empty (TXE=1) at the time we enable this interrupt,
+    // then the USART peripheral will invoke the USART interrupt handler;
+    //
+    // If this interrupt happens to be already enabled,
+    // then either the USART interrupt handler is already executing or
+    // it will execute when the TDR becomes empty again.
+    LL_USART_EnableIT_TXE(USART2);
+};
 
-        LL_USART_DisableIT_TC(USARTx_INSTANCE);
 
-        // LED_On();
+
+// =============================================================================================#=
+// Public API Functions
+// =============================================================================================#=
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// TX API Functions
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// RX APIs
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// Write the content of the given buffer into
+// the USART TX ring buffer provided by this module;
+// When there is insufficent space available in the ring buffer,
+// the given content is silently thrown away;
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+void USART_IT_BUFF_Tx_Write_Best_Effort(uint8_t *buff_addr, uint8_t buff_len)
+{
+    uint32_t num_slots = rb_slots_available( &rb_usart_tx );
+
+    if (num_slots < buff_len) {
+        // insufficient space for given buffer;
+        // buffer content is lost;
+        return;
     }
+
+    // Copy given content into buffer;
+    for(int idx=0; idx<buff_len; idx++) {
+        rb_write_byte_to_tail( &rb_usart_tx, buff_addr[idx] );
+    }
+
+    tx_data_available();
+    return;
+};
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// RX API Functions
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+
+// -----------------------------------------------------------------------------+-
+// Get Line
+// -----------------------------------------------------------------------------+-
+uint32_t USART_IT_BUFF_Rx_Get_Line(
+    uint8_t  *input_buffer,
+    uint32_t  input_buffer_len)
+{
+    // allow room for the nul terminating char;
+    int32_t  available_len = input_buffer_len-1;
+    uint32_t idx=0;
+
+    if(available_len <= 0) {
+        // No room in the given buffer;
+        input_buffer[0] = '\0';
+    }
+    else if(rb_is_empty(&rb_usart_rx)) {
+        // No input available;
+        input_buffer[0] = '\0';
+    }
+    else {
+        while(idx<available_len) {
+            uint8_t next_byte = rb_read_byte_from_head(&rb_usart_rx);
+            input_buffer[idx++] = next_byte;
+            if(next_byte == '\n') break;
+            if(rb_is_empty(&rb_usart_rx)) break;
+        }
+        input_buffer[idx] = '\0';
+    }
+    // Trace_Red_Toggle();
+    // Trace_Green_Toggle();
+    // Trace_Yellow_Toggle();
+    return idx;
 }
 
-//
-// Function called in case of error detected in USART IT Handler
-//
-void USART_Error_Callback(void)
-{
-    volatile uint32_t isr_reg;
 
-    NVIC_DisableIRQ(USARTx_IRQn);
 
-    /* Error handling example :
-        - Read USART ISR register to identify flag that leads to IT raising
-        - Perform corresponding error handling treatment according to flag
-    */
-    isr_reg = LL_USART_ReadReg(USARTx_INSTANCE, ISR);
-    if (isr_reg & LL_USART_ISR_NE)
-    {
-        /* case Noise Error flag is raised : ... */
-        LED_Blinking(LED_BLINK_FAST);
-    }
-    else
-    {
-        /* Unexpected IT source : Set LED to Blinking mode to indicate error occurs */
-        LED_Blinking(LED_BLINK_ERROR);
-    }
-};
-#endif
 
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@

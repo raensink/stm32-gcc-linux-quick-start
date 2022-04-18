@@ -22,7 +22,7 @@ SPDX-License-Identifier: MIT-0
 #include "core/swtrace/swtrace-led.h"
 #include "mcu/clock/mco.h"
 #include "mcu/clock/clock-tree-default-config.h"
-#include "platform/usart/usart-it-buff.h"
+#include "platform/usart/usart-it-cli.h"
 
 // MCU Device Definition
 #include "CMSIS/Device/ST/STM32L4xx/Include/stm32l476xx.h"
@@ -149,12 +149,12 @@ static void user_button_callback(void)
         Blinky_Delay = 0x0000FFFF;
     }
 
-    uint32_t byte_count = USART_IT_BUFF_Rx_Get_Line(
-        Input_Buffer, Input_Buffer_Len
-    );
-    if( byte_count > 0) {
-        USART_IT_BUFF_Tx_Write_Best_Effort(Input_Buffer, byte_count);
-    }
+    // @@@ uint32_t byte_count = USART_IT_BUFF_Rx_Get_Line(
+        // @@@ Input_Buffer, Input_Buffer_Len
+    // @@@ );
+    // @@@ if( byte_count > 0) {
+        // @@@ USART_IT_BUFF_Tx_Write_Best_Effort(Input_Buffer, byte_count);
+    // @@@ }
 
     // Toggle button press flag; not really used;
     toggle_button_press ^= 1;
@@ -163,21 +163,21 @@ static void user_button_callback(void)
 // -----------------------------------------------------------------------------+-
 // Rx Data Available Callback;
 // -----------------------------------------------------------------------------+-
-static void rx_data_avail_callback(uint32_t len, bool eol)
-{
-    Trace_Red_Toggle();
+// @@@ static void rx_data_avail_callback(uint32_t len, bool eol)
+// @@@ {
+    // @@@ Trace_Red_Toggle();
 
-    uint32_t byte_count = USART_IT_BUFF_Rx_Get_Line(
-        Input_Buffer, Input_Buffer_Len
-    );
-    if( byte_count > 0) {
-        USART_IT_BUFF_Tx_Write_Best_Effort(Input_Buffer, byte_count);
-        if(eol) {
-            // Add a Newline(LF) to the CR, replacing the NULL;
-            USART_IT_BUFF_Tx_Write_Best_Effort((uint8_t *)"\n", 1);
-        }
-    }
-}
+    // @@@ uint32_t byte_count = USART_IT_BUFF_Rx_Get_Line(
+        // @@@ Input_Buffer, Input_Buffer_Len
+    // @@@ );
+    // @@@ if( byte_count > 0) {
+        // @@@ USART_IT_BUFF_Tx_Write_Best_Effort(Input_Buffer, byte_count);
+        // @@@ if(eol) {
+            // @@@ // Add a Newline(LF) to the CR, replacing the NULL;
+            // @@@ USART_IT_BUFF_Tx_Write_Best_Effort((uint8_t *)"\n", 1);
+        // @@@ }
+    // @@@ }
+// @@@ }
 
 
 // =============================================================================================#=
@@ -236,7 +236,7 @@ static void TX_Next_Byte(void)
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 void USART2_IRQHandler(void)
 {
-    USART_ISR(USART_PERIPH_2);
+    USART_IT_CLI_ISR();
 };
 
 
@@ -285,10 +285,10 @@ int main(void)
 
     user_button_config();
 
-    USART_IT_BUFF_Rx_Set_Callback(rx_data_avail_callback);
-    USART_IT_BUFF_Rx_Set_EOL_Detect(true);
-    USART_IT_BUFF_Rx_Set_Threshold_Detect(10U); // ten percent
-    USART_IT_BUFF_Module_Init( MCU_Clock_Get_PCLK1_Frequency_Hz() );
+    // USART_IT_BUFF_Rx_Set_Callback(rx_data_avail_callback);
+    // USART_IT_BUFF_Rx_Set_EOL_Detect(true);
+    // USART_IT_BUFF_Rx_Set_Threshold_Detect(10U); // ten percent
+    USART_IT_CLI_Module_Init( MCU_Clock_Get_PCLK1_Frequency_Hz() );
 
     while(1)
     {

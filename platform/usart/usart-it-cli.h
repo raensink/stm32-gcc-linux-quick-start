@@ -20,6 +20,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+// STM32 Low Level Drivers
+#include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_usart.h"
+
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // General Module APIs
@@ -36,7 +39,7 @@ void USART_IT_CLI_Module_Init(
 // USART Peripheral Interrupt
 // This should be invoked from the USART*_IRQHandler function.
 // -----------------------------------------------------------------------------+-
-void USART_ISR(USART_Periph_Num given_usart);
+void USART_IT_CLI_ISR(void);
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
