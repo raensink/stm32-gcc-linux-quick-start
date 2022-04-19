@@ -163,9 +163,9 @@ static void user_button_callback(void)
 // -----------------------------------------------------------------------------+-
 // Rx Data Available Callback;
 // -----------------------------------------------------------------------------+-
-// @@@ static void rx_data_avail_callback(uint32_t len, bool eol)
-// @@@ {
-    // @@@ Trace_Red_Toggle();
+static void rx_data_avail_callback(uint32_t len)
+{
+    Trace_Red_Toggle();
 
     // @@@ uint32_t byte_count = USART_IT_BUFF_Rx_Get_Line(
         // @@@ Input_Buffer, Input_Buffer_Len
@@ -177,7 +177,7 @@ static void user_button_callback(void)
             // @@@ USART_IT_BUFF_Tx_Write_Best_Effort((uint8_t *)"\n", 1);
         // @@@ }
     // @@@ }
-// @@@ }
+}
 
 
 // =============================================================================================#=
@@ -285,9 +285,7 @@ int main(void)
 
     user_button_config();
 
-    // USART_IT_BUFF_Rx_Set_Callback(rx_data_avail_callback);
-    // USART_IT_BUFF_Rx_Set_EOL_Detect(true);
-    // USART_IT_BUFF_Rx_Set_Threshold_Detect(10U); // ten percent
+    USART_IT_CLI_Register_Rx_Callback(rx_data_avail_callback);
     USART_IT_CLI_Module_Init( MCU_Clock_Get_PCLK1_Frequency_Hz() );
 
     while(1)

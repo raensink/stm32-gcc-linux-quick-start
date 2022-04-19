@@ -16,6 +16,8 @@
 
 #include "platform/usart/usart-it-cli.h"
 
+#include <string.h>
+
 // Project dependencies
 #include "core/swtrace/swtrace-led.h"
 #include "platform/util/ring-buffer.h"
@@ -25,6 +27,7 @@
 #include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_rcc.h"
 #include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_gpio.h"
 #include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_usart.h"
+
 
 
 // =============================================================================================#=
@@ -60,16 +63,39 @@ static Ring_Buffer echo_queue = {
 
 
 // -----------------------------------------------------------------------------+-
-// Pending Command Double Buffer (PCB)
+// Pending Command Buffer (PCB)
 // -----------------------------------------------------------------------------+-
-#define MAX_CMD_LEN  (128)
+typedef struct
+{
+    uint8_t  *buff;         // pending command buffer
+    uint32_t  size;         // buffer size
+    uint32_t  tail_idx;     // the next input char goes here;
+    uint32_t  refresh_idx;  // this is the next char to be refreshed;
+} PCB_Struct;
+
+static uint8_t pcb_a[128];
+static uint8_t pcb_b[128];
+
+static PCB_Struct Double_PCB[] = {
+    {
+        .buff = pcb_a,
+        .size = sizeof(pcb_a),
+        .tail_idx = 0,
+        .refresh_idx = 0,
+    },
+    {
+        .buff = pcb_b,
+        .size = sizeof(pcb_b),
+        .tail_idx = 0,
+        .refresh_idx = 0,
+    },
+};
+
 #define NONE_BUFF     (-1)
 #define A_BUFF         (0)
 #define B_BUFF         (1)
-static uint8_t Pending_Command_Buff[2][MAX_CMD_LEN];
-static int8_t  Command_In_Progress = A_BUFF;
-static int8_t  Command_Ready       = NONE_BUFF;
-static int8_t  Refresh_Idx         = -1;
+static int8_t  Cmd_In_Progress = A_BUFF;
+static int8_t  Cmd_Ready       = NONE_BUFF;
 
 
 // -----------------------------------------------------------------------------+-
@@ -83,111 +109,252 @@ typedef enum {
     eTxState_Client_Queue,
 } eTxState;
 
-static eTxState TXE_ISR_State = eTxState_TXE_Disabled;
+static eTxState  TXE_ISR_State = eTxState_TXE_Disabled;
+
+// A couple "super states" that trump the TXE_ISR_State;
+static bool  LF_NEEDED = false;
+static bool  CR_NEEDED = false;
+
+static char *cli_prompt = "cli> ";
 
 
 // =============================================================================================#=
 // Private Internal Functions
 // =============================================================================================#=
 
-static void pcb_add_new_char(uint8_t new_byte)
+// -----------------------------------------------------------------------------+-
+// PCB Accessor Helper Functions
+// -----------------------------------------------------------------------------+-
+static void pcb_reset(PCB_Struct *pcb)
 {
-    static uint8_t tail_idx = 0;
+    pcb->refresh_idx = 0;
+    strcpy((char *)pcb->buff, cli_prompt);
+    pcb->tail_idx = strlen(cli_prompt);
+}
+
+static void pcb_reset_refresh(PCB_Struct *pcb)
+{
+    pcb->refresh_idx = 0;
+}
+
+static bool pcb_is_full(PCB_Struct *pcb)
+{
+    return(pcb->tail_idx >= pcb->size);
+}
+
+static bool pcb_is_empty(PCB_Struct *pcb)
+{
+    return(pcb->tail_idx == strlen(cli_prompt));
+}
+
+static uint32_t pcb_strlen(PCB_Struct *pcb)
+{
+    return(pcb->tail_idx - strlen(cli_prompt));
+}
+
+static void pcb_add_char(
+    PCB_Struct *pcb,
+    uint8_t     new_byte)
+{
+    pcb->buff[pcb->tail_idx] = new_byte;
+    pcb->tail_idx++;
+}
+
+static bool pcb_get_next_refresh_char(
+    PCB_Struct *pcb,
+    uint8_t    *new_byte)
+{
+    if(pcb->refresh_idx < pcb->tail_idx) {
+        *new_byte = pcb->buff[pcb->refresh_idx];
+        pcb->refresh_idx++;
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+// -----------------------------------------------------------------------------+-
+// Add a new incoming character to the pending command buffer;
+// -----------------------------------------------------------------------------+-
+static void process_new_input_char(uint8_t new_byte)
+{
+    bool        eol = false;
+    PCB_Struct *pcb_ptr = &Double_PCB[Cmd_In_Progress];
 
     // Test for 'Enter' keypress
     if(new_byte == '\r') {
-        new_byte == '\n';    // around here, we prefer newlines as our EOL delimiters;
+        eol = true;
+        // Trace_Green_Toggle();
+        // Trace_Yellow_Toggle();
+
+        // around here, we prefer our EOL delimiters as newlines;
+        pcb_add_char(pcb_ptr, '\n');
     }
-    Pending_Command_Buff[Command_In_Progress][tail_idx++] = new_byte;
+    else {
+        pcb_add_char(pcb_ptr, new_byte);
+    }
 
-    // Process EOL
-    //
+    // if the buffer is full, count that as an EOL
+    if(pcb_is_full(pcb_ptr)) {
+        eol = true;
+    }
+
+    // Process EOL;
+    if(eol) {
+        if(!pcb_is_empty(pcb_ptr)) {
+            // Notify client that the input command line is ready for consumption;
+            Cmd_Ready = Cmd_In_Progress;
+            if(input_data_avail != NULL) {
+                uint32_t len = pcb_strlen(pcb_ptr);
+                input_data_avail(len);
+            }
+
+            // Swap the double buffers and reset the one newly in-progress;
+            Cmd_In_Progress = (Cmd_Ready == A_BUFF) ? B_BUFF : A_BUFF;
+            pcb_reset(&Double_PCB[Cmd_In_Progress]);
+        }
+    }
+
     // TODO: Future, process backspace
+    return;
 }
 
-static eTxState handle_txe_disabled_state(uint8_t *tx_byte)
+static eTxState service_the_echo_queue(uint8_t *next_byte)
 {
-    eTxState next_state;
-    *tx_byte = '\0';
+    eTxState    next_state;
+    PCB_Struct *pcb_ptr;
 
-    // if echo queue not empty
-    //     service the echo queue
-    //     *tx_byte = char to be echo'd to CLI
-    //     next_state = eTxState_Echo_Queue;
+    // Assumes the echo queue is not empty;
+    *next_byte = RB_Read_Byte_From_Head(&echo_queue);
+    process_new_input_char(*next_byte);
 
-    // else if client queue not empty
-    //     service the client queue
-    //     *tx_byte = next tx char xmit on wire
-    //     next_state = eTxState_Client_Queue;
+    if(*next_byte == '\r') {
+        // record the need to xmit an LF to accompany the CR;
+        // this will happen on the next invocation of the ISR;
+        LF_NEEDED = true;
 
-    // else
-    //     // Not sure why we got called but there is nothing to do;
-    //     next_state = eTxState_TXE_Disable;
+        // Enter key was pressed, so refresh the command line with cli prompt.
+        pcb_ptr = &Double_PCB[Cmd_In_Progress];
+        pcb_reset_refresh(pcb_ptr);
+        next_state = eTxState_CLI_Refresh;
+    }
+    else {
+        next_state = eTxState_Echo_Queue;
+    }
+    return next_state;
+}
+
+static eTxState service_the_client_queue(uint8_t *next_byte)
+{
+    eTxState    next_state;
+
+    // Assumes the client queue is not empty;
+    *next_byte = RB_Read_Byte_From_Head(&client_tx_queue);
+    next_state = eTxState_Client_Queue;
+
+    if(*next_byte == '\n') {
+        // record the need to xmit an CR to accompany the LF;
+        // this will happen on the next invocation of the ISR;
+        CR_NEEDED = true;
+    }
+    return next_state;
+}
+
+// -----------------------------------------------------------------------------+-
+// State Handlers
+// -----------------------------------------------------------------------------+-
+static eTxState handle_txe_disabled_state(uint8_t *next_byte)
+{
+    eTxState    next_state;
+
+    if(RB_Is_Not_Empty(&echo_queue)) {
+        next_state = service_the_echo_queue(next_byte);
+    }
+    else if(RB_Is_Not_Empty(&client_tx_queue)) {
+        next_state = service_the_client_queue(next_byte);
+    }
+    else {
+        next_state = eTxState_TXE_Disabled;
+    }
+    return next_state;
+}
+
+static eTxState handle_cli_refresh_state(uint8_t *next_byte)
+{
+    eTxState    next_state;
+    PCB_Struct *pcb_ptr = &Double_PCB[Cmd_In_Progress];
+
+    if(pcb_get_next_refresh_char(pcb_ptr, next_byte)) {
+        next_state = eTxState_CLI_Refresh;
+    }
+    else if(RB_Is_Not_Empty(&echo_queue)) {
+        next_state = service_the_echo_queue(next_byte);
+    }
+    else if(RB_Is_Not_Empty(&client_tx_queue)) {
+        next_state = service_the_client_queue(next_byte);
+    }
+    else {
+        next_state = eTxState_TXE_Disabled;
+    }
+    return next_state;
+}
+
+static eTxState handle_echo_queue_state(uint8_t *next_byte)
+{
+    eTxState    next_state;
+
+    if(RB_Is_Not_Empty(&echo_queue)) {
+        next_state = service_the_echo_queue(next_byte);
+    }
+    else if(RB_Is_Not_Empty(&client_tx_queue)) {
+        next_state = service_the_client_queue(next_byte);
+    }
+    else {
+        next_state = eTxState_TXE_Disabled;
+    }
+    return next_state;
+}
+
+static eTxState handle_client_queue_state(uint8_t *next_byte)
+{
+    eTxState    next_state;
+    PCB_Struct *pcb_ptr;
+
+    if(RB_Is_Not_Empty(&client_tx_queue)) {
+        next_state = service_the_client_queue(next_byte);
+    }
+    else if(RB_Is_Not_Empty(&echo_queue)) {
+        pcb_ptr = &Double_PCB[Cmd_In_Progress];
+        pcb_reset_refresh(pcb_ptr);
+        pcb_get_next_refresh_char(pcb_ptr, next_byte);
+        next_state = eTxState_CLI_Refresh;
+    }
+    else {
+        next_state = eTxState_TXE_Disabled;
+    }
 
     return next_state;
 }
 
-static eTxState handle_cli_refresh_state(uint8_t *tx_byte)
+
+
+// -----------------------------------------------------------------------------+-
+// Helper function to signal to the USART peripheral
+// that new TX data is available for transmission onto the wire;
+// -----------------------------------------------------------------------------+-
+static void tx_data_available(void)
 {
-    eTxState next_state;
-    *tx_byte = '\0';
-
-    // get next refresh char
-    // if char
-    //     *tx_byte = next refresh char;
-    //     next_state = eTxState_CLI_Refesh;
-    // else
-    //     service the echo queue;
-    //     *tx_byte = char to be echo'd to CLI;
-    //     next_state = eTxState_Echo_Queue;
-
-    return next_state;
-}
-
-static eTxState handle_echo_queue_state(uint8_t *tx_byte)
-{
-    eTxState next_state;
-    *tx_byte = '\0';
-
-    // get next echo char
-    // if char
-    //     service the echo queue;
-    //     *tx_byte = char to be echo'd to CLI;
-    //     next_state = eTxState_Echo_Queue;
-    // else
-    //     if client queue not empty
-    //         service the client queue
-    //         *tx_byte = next tx char xmit on wire
-    //         next_state = eTxState_Client_Queue;
-    //     else
-    //         next_state = eTxState_TXE_Disable;
+    // Re-Enable the TXE interrupt
+    // Our understanding is that if the TDR is empty (TXE=1) at the time we enable this interrupt,
+    // then the USART peripheral will invoke the USART interrupt handler;
     //
-    // handle LF needed
+    // If this interrupt happens to be already enabled,
+    // then either the USART interrupt handler is already executing or
+    // it will execute when the TDR becomes empty again.
 
-    return next_state;
-}
-
-static eTxState handle_client_queue_state(uint8_t *tx_byte)
-{
-    eTxState next_state;
-    *tx_byte = '\0';
-
-    // get next client char
-    // if char
-    //     *tx_byte = next tx char xmit on wire
-    //     next_state = eTxState_Client_Queue;
-    // else
-    //     if echo queue not empty
-    //         service CLI Refresh
-    //         *tx_byte = next refresh char
-    //         next_state = eTxState_CLI_Refresh;
-    //     else
-    //         next_state = eTxState_TXE_Disable;
-    //
-    // handle LF needed
-
-    return next_state;
-}
+    LL_USART_EnableIT_TXE(USART2);
+};
 
 // -----------------------------------------------------------------------------+-
 // Helper function to do the needful when the USART TDR is empty;
@@ -195,45 +362,56 @@ static eTxState handle_client_queue_state(uint8_t *tx_byte)
 static void usart_tdr_empty(void)
 {
     eTxState next_state;
-    uint8_t  tx_byte;
+    uint8_t  next_byte;
+
+    if(LF_NEEDED) {
+        // Do not change the current state;
+        // Transmit a Line Feed character;
+        LL_USART_TransmitData8(USART2, '\n');
+        LF_NEEDED = false;
+        return;
+    }
+    if(CR_NEEDED) {
+        // Do not change the current state;
+        // Transmit a Carriage Return character;
+        LL_USART_TransmitData8(USART2, '\r');
+        CR_NEEDED = false;
+        return;
+    }
 
     switch (TXE_ISR_State) {
 
     case eTxState_TXE_Disabled:
-        next_state = handle_txe_disabled_state(&tx_byte);
+        next_state = handle_txe_disabled_state(&next_byte);
+        // Trace_Red_Toggle();
         break;
 
     case eTxState_CLI_Refresh:
-        next_state = handle_cli_refresh_state(&tx_byte);
+        next_state = handle_cli_refresh_state(&next_byte);
         break;
 
     case eTxState_Echo_Queue:
-        next_state = handle_echo_queue_state(&tx_byte);
+        next_state = handle_echo_queue_state(&next_byte);
         break;
 
     case eTxState_Client_Queue:
-        next_state = handle_client_queue_state(&tx_byte);
+        next_state = handle_client_queue_state(&next_byte);
         break;
 
     default:
-        // ADD ASSERT HERE;
+        // ADD ASSERT false HERE;
         break;
     }
-    // XMIT tx_byte unless disabled;
-    // set next state
 
-
-    // @@@ if(rb_is_empty(&rb_usart_tx)) {
-        // Disable the TXE interrupt as there is no more TX data to send;
-        // It appears there is no way to explicitly clear TXE active bit?
-        // @@@ LL_USART_DisableIT_TXE(USART2);
-    // @@@ }
-    // @@@ else {
-        // Write the next outgoing byte to the TDR register;
+    if(next_state == eTxState_TXE_Disabled) {
+        LL_USART_DisableIT_TXE(USART2);
+    }
+    else {
+        // Write the next tx byte to the TDR register;
         // this will clear the TXE bit;
-        // @@@ uint8_t next_byte = rb_read_byte_from_head(&rb_usart_tx);
-        // @@@ LL_USART_TransmitData8(USART2, next_byte);
-    // @@@ }
+        LL_USART_TransmitData8(USART2, next_byte);
+    }
+    TXE_ISR_State = next_state;
     return;
 }
 
@@ -255,27 +433,12 @@ static void usart_rdr_notempty(void)
         // Perhaps someday we can increment an error counter here; TODO
     }
     else {
+        //Trace_Blue_Toggle();
         RB_Write_Byte_To_Tail( &echo_queue, rx_byte );
+        tx_data_available();
     }
     return;
 }
-
-// -----------------------------------------------------------------------------+-
-// Helper function to signal to the USART peripheral
-// that new TX data is available for transmission onto the wire;
-// -----------------------------------------------------------------------------+-
-static void tx_data_available(void)
-{
-    // Re-Enable the TXE interrupt
-    // Our understanding is that if the TDR is empty (TXE=1) at the time we enable this interrupt,
-    // then the USART peripheral will invoke the USART interrupt handler;
-    //
-    // If this interrupt happens to be already enabled,
-    // then either the USART interrupt handler is already executing or
-    // it will execute when the TDR becomes empty again.
-
-    LL_USART_EnableIT_TXE(USART2);
-};
 
 // =============================================================================================#=
 // Public API Functions
@@ -350,9 +513,6 @@ uint32_t USART_IT_CLI_Get_Line(
         // @@@ }
         // @@@ input_buffer[idx] = '\0';
     // @@@ }
-    // Trace_Red_Toggle();
-    // Trace_Green_Toggle();
-    // Trace_Yellow_Toggle();
     return idx;
 }
 
@@ -402,6 +562,10 @@ void USART_IT_CLI_ISR(void)
 //     USART2
 //     TX  PA2
 //     RX  PA3
+//
+// FUTURE TODO: @@@ pass the USART# in as a param and
+// save internally for all references to same.
+// OR... use board model.
 // -----------------------------------------------------------------------------+-
 void USART_IT_CLI_Module_Init(uint32_t given_PCLK1_frequency_in_hertz)
 {

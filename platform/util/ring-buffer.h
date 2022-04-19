@@ -56,6 +56,8 @@ uint32_t  RB_Size( Ring_Buffer *rb );
 
 bool      RB_Is_Empty( Ring_Buffer *rb );
 
+bool      RB_Is_Not_Empty( Ring_Buffer *rb );
+
 bool      RB_Is_Full( Ring_Buffer *rb );
 
 uint32_t  RB_Bytes_Available( Ring_Buffer *rb );

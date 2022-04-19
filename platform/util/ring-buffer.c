@@ -50,6 +50,11 @@ bool RB_Is_Empty( Ring_Buffer *rb )
     return rb->head == rb->tail;
 };
 
+bool RB_Is_Not_Empty( Ring_Buffer *rb )
+{
+    return rb->head != rb->tail;
+};
+
 bool RB_Is_Full( Ring_Buffer *rb )
 {
     return RB_Bytes_Available(rb) == rb->size;
