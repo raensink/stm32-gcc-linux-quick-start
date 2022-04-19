@@ -67,10 +67,10 @@ static Ring_Buffer echo_queue = {
 // -----------------------------------------------------------------------------+-
 typedef struct
 {
-    uint8_t  *buff;         // pending command buffer
-    uint32_t  size;         // buffer size
-    uint32_t  tail_idx;     // the next input char goes here;
-    uint32_t  refresh_idx;  // this is the next char to be refreshed;
+    uint8_t  *buff;      // pending command buffer
+    uint32_t  size;      // buffer size
+    uint32_t  tail_idx;  // the next input char goes here;
+    uint32_t  read_idx;  // this is the next char to be read;
 } PCB_Struct;
 
 static uint8_t pcb_a[128];
@@ -81,21 +81,21 @@ static PCB_Struct Double_PCB[] = {
         .buff = pcb_a,
         .size = sizeof(pcb_a),
         .tail_idx = 0,
-        .refresh_idx = 0,
+        .read_idx = 0,
     },
     {
         .buff = pcb_b,
         .size = sizeof(pcb_b),
         .tail_idx = 0,
-        .refresh_idx = 0,
+        .read_idx = 0,
     },
 };
 
-#define NONE_BUFF     (-1)
-#define A_BUFF         (0)
-#define B_BUFF         (1)
-static int8_t  Cmd_In_Progress = A_BUFF;
-static int8_t  Cmd_Ready       = NONE_BUFF;
+#define BUFF_NONE     (-1)
+#define BUFF_A         (0)
+#define BUFF_B         (1)
+static int8_t  Cmd_In_Progress = BUFF_A;
+static int8_t  Cmd_Ready       = BUFF_NONE;
 
 
 // -----------------------------------------------------------------------------+-
@@ -127,14 +127,19 @@ static char *cli_prompt = "cli> ";
 // -----------------------------------------------------------------------------+-
 static void pcb_reset(PCB_Struct *pcb)
 {
-    pcb->refresh_idx = 0;
+    pcb->read_idx = 0;
     strcpy((char *)pcb->buff, cli_prompt);
     pcb->tail_idx = strlen(cli_prompt);
 }
 
 static void pcb_reset_refresh(PCB_Struct *pcb)
 {
-    pcb->refresh_idx = 0;
+    pcb->read_idx = 0;
+}
+
+static void pcb_reset_get_cmd(PCB_Struct *pcb)
+{
+    pcb->read_idx = strlen(cli_prompt);
 }
 
 static bool pcb_is_full(PCB_Struct *pcb)
@@ -142,14 +147,14 @@ static bool pcb_is_full(PCB_Struct *pcb)
     return(pcb->tail_idx >= pcb->size);
 }
 
-static bool pcb_is_empty(PCB_Struct *pcb)
-{
-    return(pcb->tail_idx == strlen(cli_prompt));
-}
-
 static uint32_t pcb_strlen(PCB_Struct *pcb)
 {
     return(pcb->tail_idx - strlen(cli_prompt));
+}
+
+static bool pcb_is_empty(PCB_Struct *pcb)
+{
+    return(pcb->tail_idx == strlen(cli_prompt));
 }
 
 static void pcb_add_char(
@@ -160,13 +165,13 @@ static void pcb_add_char(
     pcb->tail_idx++;
 }
 
-static bool pcb_get_next_refresh_char(
+static bool pcb_read_next_char(
     PCB_Struct *pcb,
     uint8_t    *new_byte)
 {
-    if(pcb->refresh_idx < pcb->tail_idx) {
-        *new_byte = pcb->buff[pcb->refresh_idx];
-        pcb->refresh_idx++;
+    if(pcb->read_idx < pcb->tail_idx) {
+        *new_byte = pcb->buff[pcb->read_idx];
+        pcb->read_idx++;
         return true;
     }
     else {
@@ -184,12 +189,9 @@ static void process_new_input_char(uint8_t new_byte)
 
     // Test for 'Enter' keypress
     if(new_byte == '\r') {
-        eol = true;
-        // Trace_Green_Toggle();
-        // Trace_Yellow_Toggle();
-
         // around here, we prefer our EOL delimiters as newlines;
         pcb_add_char(pcb_ptr, '\n');
+        eol = true;
     }
     else {
         pcb_add_char(pcb_ptr, new_byte);
@@ -202,7 +204,11 @@ static void process_new_input_char(uint8_t new_byte)
 
     // Process EOL;
     if(eol) {
-        if(!pcb_is_empty(pcb_ptr)) {
+        if(1 == pcb_strlen(pcb_ptr)) {
+            // User just hit enter key at prompt
+            pcb_reset(pcb_ptr);
+        }
+        else {
             // Notify client that the input command line is ready for consumption;
             Cmd_Ready = Cmd_In_Progress;
             if(input_data_avail != NULL) {
@@ -211,7 +217,7 @@ static void process_new_input_char(uint8_t new_byte)
             }
 
             // Swap the double buffers and reset the one newly in-progress;
-            Cmd_In_Progress = (Cmd_Ready == A_BUFF) ? B_BUFF : A_BUFF;
+            Cmd_In_Progress = (Cmd_Ready == BUFF_A) ? BUFF_B : BUFF_A;
             pcb_reset(&Double_PCB[Cmd_In_Progress]);
         }
     }
@@ -285,7 +291,7 @@ static eTxState handle_cli_refresh_state(uint8_t *next_byte)
     eTxState    next_state;
     PCB_Struct *pcb_ptr = &Double_PCB[Cmd_In_Progress];
 
-    if(pcb_get_next_refresh_char(pcb_ptr, next_byte)) {
+    if(pcb_read_next_char(pcb_ptr, next_byte)) {
         next_state = eTxState_CLI_Refresh;
     }
     else if(RB_Is_Not_Empty(&echo_queue)) {
@@ -327,7 +333,7 @@ static eTxState handle_client_queue_state(uint8_t *next_byte)
     else if(RB_Is_Not_Empty(&echo_queue)) {
         pcb_ptr = &Double_PCB[Cmd_In_Progress];
         pcb_reset_refresh(pcb_ptr);
-        pcb_get_next_refresh_char(pcb_ptr, next_byte);
+        pcb_read_next_char(pcb_ptr, next_byte);
         next_state = eTxState_CLI_Refresh;
     }
     else {
@@ -493,26 +499,39 @@ uint32_t USART_IT_CLI_Get_Line(
     uint32_t  input_buffer_len)
 {
     // allow room for the nul terminating char;
-    // @@@ int32_t  available_len = input_buffer_len-1;
+    int32_t  available_len = input_buffer_len-1;
     uint32_t idx=0;
+    uint8_t  next_byte;
 
-    // @@@ if(available_len <= 0) {
+    if(available_len <= 0) {
         // No room in the given buffer;
-        // @@@ input_buffer[0] = '\0';
-    // @@@ }
-    // @@@ else if(rb_is_empty(&rb_usart_rx)) {
+        input_buffer[0] = '\0';
+        return idx;
+    }
+
+    if(Cmd_Ready == BUFF_NONE) {
         // No input available;
-        // @@@ input_buffer[0] = '\0';
-    // @@@ }
-    // @@@ else {
-        // @@@ while(idx<available_len) {
-            // @@@ uint8_t next_byte = rb_read_byte_from_head(&rb_usart_rx);
-            // @@@ input_buffer[idx++] = next_byte;
-            // @@@ if(next_byte == '\n') break;
-            // @@@ if(rb_is_empty(&rb_usart_rx)) break;
-        // @@@ }
-        // @@@ input_buffer[idx] = '\0';
-    // @@@ }
+        input_buffer[0] = '\0';
+        return idx;
+    }
+
+    PCB_Struct *pcb_ptr = &Double_PCB[Cmd_Ready];
+
+    if(pcb_is_empty(pcb_ptr)) {
+        // No input available;
+        input_buffer[0] = '\0';
+        return idx;
+    }
+
+    pcb_reset_get_cmd(pcb_ptr);
+
+    while(idx<available_len) {
+        pcb_read_next_char(pcb_ptr, &next_byte);
+        input_buffer[idx++] = next_byte;
+        if(next_byte == '\n') break;
+        if(pcb_is_empty(pcb_ptr)) break;
+    }
+    input_buffer[idx] = '\0';
     return idx;
 }
 
@@ -644,5 +663,4 @@ void USART_IT_CLI_Module_Init(uint32_t given_PCLK1_frequency_in_hertz)
     // LL_USART_EnableIT_TC(USART2);
     // LL_USART_DisableIT_TXE(USART2);
 };
-
 

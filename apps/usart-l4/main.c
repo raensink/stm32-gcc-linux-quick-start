@@ -138,7 +138,7 @@ static void user_button_config(void)
 // On-Board User Button Application Callback
 // -----------------------------------------------------------------------------+-
 
-uint8_t  Input_Buffer[32];
+uint8_t  Input_Buffer[256];
 uint32_t Input_Buffer_Len = sizeof(Input_Buffer);
 
 static void user_button_callback(void)
@@ -167,16 +167,18 @@ static void rx_data_avail_callback(uint32_t len)
 {
     Trace_Red_Toggle();
 
-    // @@@ uint32_t byte_count = USART_IT_BUFF_Rx_Get_Line(
-        // @@@ Input_Buffer, Input_Buffer_Len
-    // @@@ );
-    // @@@ if( byte_count > 0) {
-        // @@@ USART_IT_BUFF_Tx_Write_Best_Effort(Input_Buffer, byte_count);
-        // @@@ if(eol) {
-            // @@@ // Add a Newline(LF) to the CR, replacing the NULL;
-            // @@@ USART_IT_BUFF_Tx_Write_Best_Effort((uint8_t *)"\n", 1);
-        // @@@ }
-    // @@@ }
+    strcpy(Input_Buffer, "\nmain: \"");
+    USART_IT_CLI_Put_Best_Effort(Input_Buffer, strlen(Input_Buffer));
+
+    uint32_t byte_count = USART_IT_CLI_Get_Line(
+        Input_Buffer, Input_Buffer_Len
+    );
+
+    if( byte_count > 0) {
+        USART_IT_CLI_Put_Best_Effort(Input_Buffer, byte_count);
+    }
+    strcpy(Input_Buffer, "\"\n");
+    USART_IT_CLI_Put_Best_Effort(Input_Buffer, strlen(Input_Buffer));
 }
 
 
