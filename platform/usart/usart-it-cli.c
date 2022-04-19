@@ -182,10 +182,13 @@ static bool pcb_read_next_char(
 // -----------------------------------------------------------------------------+-
 // Add a new incoming character to the pending command buffer;
 // -----------------------------------------------------------------------------+-
-static void process_new_input_char(uint8_t new_byte)
+static eTxState process_new_input_char(uint8_t new_byte)
 {
     bool        eol = false;
     PCB_Struct *pcb_ptr = &Double_PCB[Cmd_In_Progress];
+
+    // Stay in echo queue state unless we find a reason to do otherwise;
+    eTxState  next_state = eTxState_Echo_Queue;
 
     // Test for 'Enter' keypress
     if(new_byte == '\r') {
@@ -196,6 +199,7 @@ static void process_new_input_char(uint8_t new_byte)
     else {
         pcb_add_char(pcb_ptr, new_byte);
     }
+    // TODO: Future, process backspace
 
     // if the buffer is full, count that as an EOL
     if(pcb_is_full(pcb_ptr)) {
@@ -206,13 +210,16 @@ static void process_new_input_char(uint8_t new_byte)
     if(eol) {
         if(1 == pcb_strlen(pcb_ptr)) {
             // User just hit enter key at prompt
+            // Reset the PCB and refresh the CLI;
             pcb_reset(pcb_ptr);
+            next_state = eTxState_CLI_Refresh;
         }
         else {
             // Notify client that the input command line is ready for consumption;
             Cmd_Ready = Cmd_In_Progress;
             if(input_data_avail != NULL) {
                 uint32_t len = pcb_strlen(pcb_ptr);
+                // INVOKE CALLBACK!
                 input_data_avail(len);
             }
 
@@ -221,9 +228,7 @@ static void process_new_input_char(uint8_t new_byte)
             pcb_reset(&Double_PCB[Cmd_In_Progress]);
         }
     }
-
-    // TODO: Future, process backspace
-    return;
+    return next_state;
 }
 
 static eTxState service_the_echo_queue(uint8_t *next_byte)
@@ -233,20 +238,12 @@ static eTxState service_the_echo_queue(uint8_t *next_byte)
 
     // Assumes the echo queue is not empty;
     *next_byte = RB_Read_Byte_From_Head(&echo_queue);
-    process_new_input_char(*next_byte);
+    next_state = process_new_input_char(*next_byte);
 
     if(*next_byte == '\r') {
         // record the need to xmit an LF to accompany the CR;
-        // this will happen on the next invocation of the ISR;
+        // this should happen on the next invocation of the ISR;
         LF_NEEDED = true;
-
-        // Enter key was pressed, so refresh the command line with cli prompt.
-        pcb_ptr = &Double_PCB[Cmd_In_Progress];
-        pcb_reset_refresh(pcb_ptr);
-        next_state = eTxState_CLI_Refresh;
-    }
-    else {
-        next_state = eTxState_Echo_Queue;
     }
     return next_state;
 }
@@ -328,18 +325,16 @@ static eTxState handle_client_queue_state(uint8_t *next_byte)
     PCB_Struct *pcb_ptr;
 
     if(RB_Is_Not_Empty(&client_tx_queue)) {
+        // Continue servicing the client queue until it is empty;
         next_state = service_the_client_queue(next_byte);
     }
-    else if(RB_Is_Not_Empty(&echo_queue)) {
+    else {
+        // Then refresh the user's command line;
         pcb_ptr = &Double_PCB[Cmd_In_Progress];
         pcb_reset_refresh(pcb_ptr);
         pcb_read_next_char(pcb_ptr, next_byte);
         next_state = eTxState_CLI_Refresh;
     }
-    else {
-        next_state = eTxState_TXE_Disabled;
-    }
-
     return next_state;
 }
 

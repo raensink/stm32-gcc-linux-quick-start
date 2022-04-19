@@ -148,16 +148,6 @@ static void user_button_callback(void)
     {
         Blinky_Delay = 0x0000FFFF;
     }
-
-    // @@@ uint32_t byte_count = USART_IT_BUFF_Rx_Get_Line(
-        // @@@ Input_Buffer, Input_Buffer_Len
-    // @@@ );
-    // @@@ if( byte_count > 0) {
-        // @@@ USART_IT_BUFF_Tx_Write_Best_Effort(Input_Buffer, byte_count);
-    // @@@ }
-
-    // Toggle button press flag; not really used;
-    toggle_button_press ^= 1;
 }
 
 // -----------------------------------------------------------------------------+-
@@ -167,7 +157,7 @@ static void rx_data_avail_callback(uint32_t len)
 {
     Trace_Red_Toggle();
 
-    strcpy(Input_Buffer, "\nmain: \"");
+    strcpy(Input_Buffer, "\nmain: ");
     USART_IT_CLI_Put_Best_Effort(Input_Buffer, strlen(Input_Buffer));
 
     uint32_t byte_count = USART_IT_CLI_Get_Line(
@@ -177,8 +167,6 @@ static void rx_data_avail_callback(uint32_t len)
     if( byte_count > 0) {
         USART_IT_CLI_Put_Best_Effort(Input_Buffer, byte_count);
     }
-    strcpy(Input_Buffer, "\"\n");
-    USART_IT_CLI_Put_Best_Effort(Input_Buffer, strlen(Input_Buffer));
 }
 
 
@@ -290,12 +278,15 @@ int main(void)
     USART_IT_CLI_Register_Rx_Callback(rx_data_avail_callback);
     USART_IT_CLI_Module_Init( MCU_Clock_Get_PCLK1_Frequency_Hz() );
 
-    while(1)
+    while(true)
     {
-        // Trace_Yellow_On();
-        // for( uint32_t i=0; i<0xFFFFF; i++) {};
-        // Trace_Yellow_Off();
-        // for( uint32_t i=0; i<0xFFFFF; i++) {};
+        for( uint32_t j=0; j<3; j++)
+        {
+            strcpy(Input_Buffer, "main: we are here!\n");
+            USART_IT_CLI_Put_Best_Effort(Input_Buffer, strlen(Input_Buffer));
+        };
+
+        for( uint32_t i=0; i<0xFF; i++) {};
     }
 }
 
