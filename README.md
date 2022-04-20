@@ -5,6 +5,7 @@ This is an STM32 quick-start project with the following characteristics:
 - Development Platform: Linux/WSL;
 - Build Tool-Chain: gcc-arm-none-eabi & make;
 - Refactored software architecture using best engineering practices (or at least better than what you find in most places out there);
+- FreeRTOS;
 - Support for mutiple applications (executables) using a common shared platform;
 - Support for multiple MCUs;
 - Support for multiple boards;
