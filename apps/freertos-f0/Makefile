@@ -17,8 +17,8 @@
 # ------------------------------------------------------+-
 # Application
 # ------------------------------------------------------+-
-INC_DIRS   = apps/freertos
-SRC_FILES  = apps/freertos/main.c
+INC_DIRS   = apps/freertos-f0
+SRC_FILES  = apps/freertos-f0/main.c
 
 # ------------------------------------------------------+-
 # FreeRTOS
@@ -46,29 +46,13 @@ INC_DIRS  += mcu/STM32CubeF0/Drivers/CMSIS/Device/ST/STM32F0xx/Include
 INC_DIRS  += mcu/STM32CubeF0/Drivers/STM32F0xx_HAL_Driver/Inc
 
 # ------------------------------------------------------+-
-# CMSIS
+# CMSIS, System, and Startup
 # ------------------------------------------------------+-
 INC_DIRS  += mcu/STM32CubeF0/Drivers/CMSIS/Include
 INC_DIRS  += mcu/STM32CubeF0/Drivers/CMSIS/Device/ST/STM32F0xx/Include
 
 SRC_FILES += mcu/STM32CubeF0/Drivers/CMSIS/Device/ST/STM32F0xx/Source/Templates/system_stm32f0xx.c
 SRC_FILES += mcu/STM32CubeF0/Drivers/CMSIS/Device/ST/STM32F0xx/Source/Templates/gcc/startup_stm32f091xc.s
-
-# ------------------------------------------------------+-
-# Vector Table and Exception Handlers
-# ------------------------------------------------------+-
-### ### SRC_FILES += mcu/stm32f0/vtor/reset-handler.s
-### ### SRC_FILES += mcu/stm32f0/vtor/vector-table.s
-
-# CMSIS Startup Init and Dependencies
-### INC_DIRS  += mcu/stm32f0/
-### SRC_FILES += mcu/stm32f0/core/scb.c
-### SRC_FILES += mcu/stm32f0/core/clock.c
-
-# ------------------------------------------------------+-
-# Platform
-# ------------------------------------------------------+-
-# None for this application;
 
 # ----------------------------------------------------------------------+-
 # Linker Script
