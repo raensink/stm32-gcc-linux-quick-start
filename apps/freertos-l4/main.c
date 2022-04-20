@@ -19,7 +19,7 @@ SPDX-License-Identifier: MIT-0
 #include "core/swtrace/swtrace-led.h"
 #include "mcu/clock/mco.h"
 #include "mcu/clock/clock-tree-default-config.h"
-// #include "platform/usart/usart-it-cli.h"
+#include "platform/usart/usart-it-cli.h"
 
 // MCU Device Definition
 #include "CMSIS/Device/ST/STM32L4xx/Include/stm32l476xx.h"
@@ -54,6 +54,8 @@ will remove items as they are added, meaning the send task should always find
 the queue empty. */
 #define  mainQUEUE_LENGTH        ( 1 )
 
+uint8_t  Input_Buffer[256];
+uint32_t Input_Buffer_Len = sizeof(Input_Buffer);
 
 
 // =============================================================================#=
@@ -203,6 +205,8 @@ static void prvQueueSendTask( void *pvParameters )
 // =============================================================================================#=
 static void prvQueueReceiveTask( void *pvParameters )
 {
+    static uint32_t count = 0;
+
     unsigned long ulReceivedValue;
 
     // Check the task parameter is as expected. */
@@ -213,6 +217,12 @@ static void prvQueueReceiveTask( void *pvParameters )
         // Wait until something arrives in the queue
         // this task will block indefinitely provided INCLUDE_vTaskSuspend is set to 1 in FreeRTOSConfig.h.
         xQueueReceive( xQueue, &ulReceivedValue, portMAX_DELAY );
+
+        count++;
+        if(count%16 == 0) {
+            strcpy(Input_Buffer, "main: we are here!\n");
+            USART_IT_CLI_Put_Best_Effort(Input_Buffer, strlen(Input_Buffer));
+        }
 
         // Set the LED corresponding to the value received;
         if( ulReceivedValue == 100UL )
@@ -232,6 +242,36 @@ static void prvQueueReceiveTask( void *pvParameters )
             Trace_Yellow_Toggle();
         }
         ulReceivedValue = 0U;
+    }
+}
+
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// USART2 Interrupt Request
+// (An external interrupt from the Cortex-M4 vector table;)
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+void USART2_IRQHandler(void)
+{
+    USART_IT_CLI_ISR();
+};
+
+
+// -----------------------------------------------------------------------------+-
+// Rx Data Available Callback;
+// -----------------------------------------------------------------------------+-
+static void rx_data_avail_callback(uint32_t len)
+{
+    Trace_Red_Toggle();
+
+    strcpy(Input_Buffer, "\nmain: ");
+    USART_IT_CLI_Put_Best_Effort(Input_Buffer, strlen(Input_Buffer));
+
+    uint32_t byte_count = USART_IT_CLI_Get_Line(
+        Input_Buffer, Input_Buffer_Len
+    );
+
+    if( byte_count > 0) {
+        USART_IT_CLI_Put_Best_Effort(Input_Buffer, byte_count);
     }
 }
 
@@ -258,6 +298,9 @@ int main( void )
     SW_Trace_External_LED_Init();
     SW_Trace_OnBoard_LED_Init();
 
+    // USART_IT_CLI_Register_Rx_Callback(rx_data_avail_callback);
+    USART_IT_CLI_Module_Init( MCU_Clock_Get_PCLK1_Frequency_Hz() );
+
     xQueue = xQueueCreate( mainQUEUE_LENGTH, sizeof( unsigned long ) );
 
     if( xQueue != NULL )
@@ -266,7 +309,7 @@ int main( void )
         xTaskCreate(
             prvQueueReceiveTask,        /* The function that implements the task. */
             "Rx",         /* The text name assigned to the task - for debug only as it is not used by the kernel. */
-            configMINIMAL_STACK_SIZE,         /* The size of the stack to allocate to the task. */
+            (configMINIMAL_STACK_SIZE * 8),         /* The size of the stack to allocate to the task. */
             ( void * ) mainQUEUE_RECEIVE_PARAMETER, /* The parameter passed to the task - just to check the functionality. */
             mainQUEUE_RECEIVE_TASK_PRIORITY,         /* The priority assigned to the task. */
             NULL                                    // The task handle is not required, so NULL is passed.
@@ -275,7 +318,7 @@ int main( void )
         xTaskCreate(
             prvQueueSendTask,
             "TX",
-            configMINIMAL_STACK_SIZE,
+            (configMINIMAL_STACK_SIZE * 8),
             ( void * ) mainQUEUE_SEND_PARAMETER,
             mainQUEUE_SEND_TASK_PRIORITY,
             NULL
