@@ -8,6 +8,19 @@ stm32-gcc-linux-quick-start/LICENSE
 stm32-gcc-linux-quick-start/apps/makefile-apps-common.mk
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+stm32-gcc-linux-quick-start/apps/freertos-f0
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+apps/freertos-f0/Makefile
+apps/freertos-f0/main.c
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+stm32-gcc-linux-quick-start/apps/usart-l4
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+apps/usart-l4/Makefile
+apps/usart-l4/main.c
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 stm32-gcc-linux-quick-start/apps/button-blinky-it
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 apps/button-blinky-it/README.md
@@ -20,12 +33,6 @@ stm32-gcc-linux-quick-start/apps/blinky-l4
 apps/blinky-l4/README.md
 apps/blinky-l4/Makefile
 apps/blinky-l4/main.c
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-stm32-gcc-linux-quick-start/apps/usart-l4
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-apps/usart-l4/Makefile
-apps/usart-l4/main.c
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 platform/README.md
