@@ -1,8 +1,7 @@
 
 # ======================================================================================#=
 # MAKEFILE
-# apps/usart-l4/Makefile
-#
+# apps/freertos-l4/Makefile
 #
 # SPDX-License-Identifier: MIT-0
 # ======================================================================================#=
@@ -19,14 +18,29 @@
 # ------------------------------------------------------+-
 # Application
 # ------------------------------------------------------+-
-INC_DIRS   = apps/usart-l4
-SRC_FILES  = apps/usart-l4/main.c
+INC_DIRS   = apps/freertos-l4
+SRC_FILES  = apps/freertos-l4/main.c
+
+
+# ------------------------------------------------------+-
+# FreeRTOS
+# ------------------------------------------------------+-
+SRC_FILES += core/FreeRTOS-Kernel/tasks.c
+SRC_FILES += core/FreeRTOS-Kernel/queue.c
+SRC_FILES += core/FreeRTOS-Kernel/list.c
+SRC_FILES += core/FreeRTOS-Kernel/timers.c
+SRC_FILES += core/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c
+SRC_FILES += core/FreeRTOS-Kernel/portable/MemMang/heap_1.c
+
+INC_DIRS  += core/FreeRTOS-Kernel/include
+INC_DIRS  += core/FreeRTOS-Kernel/portable/GCC/ARM_CM4F
+
 
 # ----------------------------------------------------------------------+-
 # Platform
 # ----------------------------------------------------------------------+-
-SRC_FILES += platform/usart/usart-it-cli.c
 SRC_FILES += platform/util/ring-buffer.c
+SRC_FILES += platform/usart/usart-it-cli.c
 
 # ----------------------------------------------------------------------+-
 # Core

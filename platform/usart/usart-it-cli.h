@@ -10,9 +10,6 @@
 //     Command Response Output
 //     SW Trace Output
 //
-// TX Description:
-// RX Description
-//
 // SPDX-License-Identifier: MIT-0
 // =============================================================================================#=
 

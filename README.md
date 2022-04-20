@@ -4,7 +4,8 @@ Hello World, LED Blinky, and more!
 This is an STM32 quick-start project with the following characteristics:
 - Development Platform: Linux/WSL;
 - Build Tool-Chain: gcc-arm-none-eabi & make;
-- Refactored software architecture using best engineering practices (or at least better than what you find in most places out there);
+- Refactored software architecture using great engineering practices (or at least better than what you find in most examples out there);
+- FreeRTOS;
 - Support for mutiple applications (executables) using a common shared platform;
 - Support for multiple MCUs;
 - Support for multiple boards;

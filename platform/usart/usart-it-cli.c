@@ -234,7 +234,6 @@ static eTxState process_new_input_char(uint8_t new_byte)
 static eTxState service_the_echo_queue(uint8_t *next_byte)
 {
     eTxState    next_state;
-    PCB_Struct *pcb_ptr;
 
     // Assumes the echo queue is not empty;
     *next_byte = RB_Read_Byte_From_Head(&echo_queue);
@@ -471,7 +470,18 @@ void USART_IT_CLI_Put_Best_Effort(uint8_t *given_buff_addr, uint8_t given_buff_l
 
     tx_data_available();
     return;
-};
+}
+
+// -----------------------------------------------------------------------------+-
+// TX SLOTS AVAILABLE
+// -----------------------------------------------------------------------------+-
+uint32_t USART_IT_CLI_Tx_Slots_Available(void)
+{
+    uint32_t num_slots = RB_Slots_Available(&client_tx_queue);
+    return   num_slots;
+}
+
+
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // RX API Functions
