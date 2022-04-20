@@ -39,6 +39,9 @@ platform/usart/usart-it-cli.c
 platform/util/ring-buffer.h
 platform/util/ring-buffer.c
 
+platform/cli/cli-api.h
+platform/cli/cli-core.c
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 core/README.md
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~

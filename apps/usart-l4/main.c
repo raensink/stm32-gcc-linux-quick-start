@@ -23,6 +23,7 @@ SPDX-License-Identifier: MIT-0
 #include "mcu/clock/mco.h"
 #include "mcu/clock/clock-tree-default-config.h"
 #include "platform/usart/usart-it-cli.h"
+#include "platform/cli/cli-api.h"
 
 // MCU Device Definition
 #include "CMSIS/Device/ST/STM32L4xx/Include/stm32l476xx.h"
@@ -253,12 +254,36 @@ void assert_failed(uint8_t *file, uint32_t line)
 }
 #endif
 
+static CLI_ReadLineFromTerminal_f   *in_fptr;
+static CLI_WriteLineToTerminal_f    *out_fptr;
+
+static CLI_Return_e in_shim(
+    uint8_t   *inputBuffPtr,
+    size_t     inputBuffSize,
+    size_t    *inputLen)
+{
+    // call get line here 
+    // and do the needfull
+}
+
+
+static void out_shim(
+    const char *outputBuffPtr,
+    size_t      outputBuffSize)
+{
+    // call put best effort here 
+    // and do the needfull
+}
+
 
 // =============================================================================================#=
 // MAIN
 // =============================================================================================#=
 int main(void)
 {
+    // in_fptr = &in_shim;
+    // out_fptr = &out_shim;
+
     // TODO: Explain what's going on here.
     // Refactor? Move?
     LL_FLASH_SetLatency(LL_FLASH_LATENCY_1);
