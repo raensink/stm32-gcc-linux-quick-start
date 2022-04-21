@@ -273,6 +273,7 @@ static void process_input_char(uint8_t given_char)
     // Restablish the user's command line, as needed.
     // -----------------------------------------------------------------------------+-
     if(restore_user_cmd_line) {
+        Trace_Red_Toggle();
         echo_this_char_to_terminal('\r');
 
         echo_cli_prompt_to_terminal();
@@ -321,6 +322,7 @@ static void process_input_char(uint8_t given_char)
             // do not add the CR to the PCB;
             echo_this_char_to_terminal('\n');
             echo_cli_prompt_to_terminal();
+            Trace_Blue_Toggle();
         }
     }
 
@@ -416,7 +418,6 @@ static void usart_tdr_empty(void)
     }
 
     if(write_tdr) {
-        Trace_Red_Toggle();
         LL_USART_TransmitData8(USART2, next_char);
         if(next_char == '\n') CR_Needed = true;
     }

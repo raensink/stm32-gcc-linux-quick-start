@@ -235,7 +235,7 @@ static void prvQueueReceiveTask( void *pvParameters )
         }
         else if( ulReceivedValue == 102UL )
         {
-            Trace_Blue_Toggle();
+            // Trace_Blue_Toggle();
         }
         else if( ulReceivedValue == 103UL )
         {
