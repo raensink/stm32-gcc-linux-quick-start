@@ -271,8 +271,14 @@ static void process_input_char(uint8_t given_char)
 
     // -----------------------------------------------------------------------------+-
     // Restablish the user's command line, as needed.
+    //
+    // This function is called only when there is some input character
+    // to be processed. When the user's command line needs to be restored,
+    // we'll use that incoming character as our trigger to do so.
+    // However, when that trigger is an enter key, we let the normal input
+    // processing below handle the restoration of the prompt.
     // -----------------------------------------------------------------------------+-
-    if(restore_user_cmd_line) {
+    if(restore_user_cmd_line && given_char != '\r') {
         Trace_Red_Toggle();
         echo_this_char_to_terminal('\r');
 
@@ -317,7 +323,6 @@ static void process_input_char(uint8_t given_char)
             pcb_ptr = &Double_PCB[Cmd_In_Progress];
         }
         else {
-            // @@@@@@@@@@@@@ TODO: FIX: This should not be called when we have restored the CMD line above on \r
             // Empty command line,
             // just prompt the user again and
             // do not add the CR to the PCB;
