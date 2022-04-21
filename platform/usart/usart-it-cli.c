@@ -317,6 +317,7 @@ static void process_input_char(uint8_t given_char)
             pcb_ptr = &Double_PCB[Cmd_In_Progress];
         }
         else {
+            // @@@@@@@@@@@@@ TODO: FIX: This should not be called when we have restored the CMD line above on \r
             // Empty command line,
             // just prompt the user again and
             // do not add the CR to the PCB;
