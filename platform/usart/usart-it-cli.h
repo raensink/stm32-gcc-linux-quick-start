@@ -46,20 +46,25 @@ void USART_IT_CLI_ISR(void);
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 
 // -----------------------------------------------------------------------------+-
-// CLI PUT BEST EFFORT
+// USART CLI PUT RESPONSE
+// USART CLI PUT TRACE
 //
-// Write the given content into the Client Tx Queue (ring buffer);
-// Warning: when there is insufficent space available in the ring buffer,
+// Write the given content into
+// the Command Response ring buff or the Trace Output ring buff, respectively.
+//
+// Warning: when there is insufficent space available in either ring buffer,
 // the given content is silently thrown away;
 // If the client cannot allow it's content to be lost, and if it can afford to wait,
 // use the 'slots available' API call to first check for available TX slots.
 // -----------------------------------------------------------------------------+-
-void USART_IT_CLI_Put_Best_Effort(uint8_t *buff_addr, uint8_t buff_len);
+void USART_IT_CLI_Put_Response(uint8_t *buff_addr, uint8_t buff_len);
+void USART_IT_CLI_Put_Trace(uint8_t *buff_addr, uint8_t buff_len);
 
 // -----------------------------------------------------------------------------+-
 // Returns the number of slots available for new outgoing TX bytes.
 // -----------------------------------------------------------------------------+-
-uint32_t USART_IT_CLI_Tx_Slots_Available(void);
+uint32_t USART_IT_CLI_Response_Slots_Available(void);
+uint32_t USART_IT_CLI_Trace_Slots_Available(void);
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~

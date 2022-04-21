@@ -76,8 +76,10 @@ platform/README.md
 platform/usart
 platform/usart/usart-it-buff.h
 platform/usart/usart-it-buff.c
+
 platform/usart/usart-it-cli.h
 platform/usart/usart-it-cli.c
+platform/usart/usart-it-cli.c.bak
 
 platform/util/ring-buffer.h
 platform/util/ring-buffer.c

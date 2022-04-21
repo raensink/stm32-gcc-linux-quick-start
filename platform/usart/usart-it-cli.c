@@ -16,6 +16,7 @@
 
 #include "platform/usart/usart-it-cli.h"
 
+#include <ctype.h>
 #include <string.h>
 
 // Project dependencies
@@ -35,35 +36,64 @@
 // =============================================================================================#=
 
 // -----------------------------------------------------------------------------+-
+// Internal Ring Buffers
+// Size must be a power of two;
+// -----------------------------------------------------------------------------+-
+static uint8_t input_buffer[32];      // RX chars from the user's terminal;
+static uint8_t echo_buffer[32];       // TX chars to be echo'd back to the user;
+static uint8_t trace_buffer[1024];      // TX chars from the software trace facility;
+static uint8_t response_buffer[512];    // TX response chars from command processing;
+
+static Ring_Buffer input_rb = {
+    .buff = input_buffer,
+    .size = sizeof(input_buffer),
+    .tail = 0,
+    .head = 0,
+};
+
+static Ring_Buffer echo_rb = {
+    .buff = echo_buffer,
+    .size = sizeof(echo_buffer),
+    .tail = 0,
+    .head = 0,
+};
+
+static Ring_Buffer trace_rb = {
+    .buff = trace_buffer,
+    .size = sizeof(trace_buffer),
+    .tail = 0,
+    .head = 0,
+};
+
+static Ring_Buffer response_rb = {
+    .buff = response_buffer,
+    .size = sizeof(response_buffer),
+    .tail = 0,
+    .head = 0,
+};
+
+
+// -----------------------------------------------------------------------------+-
 // Callback for 'input data available' as
 // registered by the client application layer.
 // -----------------------------------------------------------------------------+-
 USART_IT_CLI_Input_Available_Callback input_data_avail = NULL;
 
 // -----------------------------------------------------------------------------+-
-// Internal Ring Buffers
-// Size must be a power of two;
+// This is how we prompt the user.
 // -----------------------------------------------------------------------------+-
-static uint8_t client_tx_queue_buff[256];   // TX chars from the client layer;
-static uint8_t echo_queue_buff[32];         // RX chars from the user CLI;
+static char *cli_prompt = "CLI > ";
 
-static Ring_Buffer client_tx_queue = {
-    .buff = client_tx_queue_buff,
-    .size = sizeof(client_tx_queue_buff),
-    .tail = 0,
-    .head = 0,
-};
-
-static Ring_Buffer echo_queue = {
-    .buff = echo_queue_buff,
-    .size = sizeof(echo_queue_buff),
-    .tail = 0,
-    .head = 0,
-};
-
+// -----------------------------------------------------------------------------+-
+// Set true when the user is actively entering a command;
+// -----------------------------------------------------------------------------+-
+static bool cmd_entry_in_progress = false;
 
 // -----------------------------------------------------------------------------+-
 // Pending Command Buffer (PCB)
+//
+// This is where we build up the user's command line before
+// it is delivered up to the application client.
 // -----------------------------------------------------------------------------+-
 typedef struct
 {
@@ -91,6 +121,10 @@ static PCB_Struct Double_PCB[] = {
     },
 };
 
+// -----------------------------------------------------------------------------+-
+// Keep track of which buffer is pending/in-progress
+// and which, if any, is ready to be consumed.
+// -----------------------------------------------------------------------------+-
 #define BUFF_NONE     (-1)
 #define BUFF_A         (0)
 #define BUFF_B         (1)
@@ -98,24 +132,16 @@ static int8_t  Cmd_In_Progress = BUFF_A;
 static int8_t  Cmd_Ready       = BUFF_NONE;
 
 
-// -----------------------------------------------------------------------------+-
-// The TXE ISR needs a state model to keep track of
-// what it should be doing on each invocation.
-// -----------------------------------------------------------------------------+-
-typedef enum {
-    eTxState_TXE_Disabled,
-    eTxState_CLI_Refresh,
-    eTxState_Echo_Queue,
-    eTxState_Client_Queue,
-} eTxState;
+// -------------------------------------------------------------+-
+// Keep a few metrics for future troubleshooting.
+// Future: trace log these to the console during clean shutdown.
+// -------------------------------------------------------------+-
+static uint32_t input_rb_overflow     = 0;
+static uint32_t echo_rb_overflow      = 0;
+static uint32_t trace_rb_overflow     = 0;
+static uint32_t response_rb_overflow  = 0;
 
-static eTxState  TXE_ISR_State = eTxState_TXE_Disabled;
 
-// A couple "super states" that trump the TXE_ISR_State;
-static bool  LF_NEEDED = false;
-static bool  CR_NEEDED = false;
-
-static char *cli_prompt = "cli> ";
 
 
 // =============================================================================================#=
@@ -128,33 +154,28 @@ static char *cli_prompt = "cli> ";
 static void pcb_reset(PCB_Struct *pcb)
 {
     pcb->read_idx = 0;
-    strcpy((char *)pcb->buff, cli_prompt);
-    pcb->tail_idx = strlen(cli_prompt);
+    pcb->tail_idx = 0;
 }
 
-static void pcb_reset_refresh(PCB_Struct *pcb)
+static void pcb_reset_read_idx(PCB_Struct *pcb)
 {
     pcb->read_idx = 0;
 }
 
-static void pcb_reset_get_cmd(PCB_Struct *pcb)
-{
-    pcb->read_idx = strlen(cli_prompt);
-}
-
 static bool pcb_is_full(PCB_Struct *pcb)
 {
-    return(pcb->tail_idx >= pcb->size);
+    // allow one byte for the terminating newline delimiter;
+    return(pcb->tail_idx >= pcb->size - 1);
 }
 
 static uint32_t pcb_strlen(PCB_Struct *pcb)
 {
-    return(pcb->tail_idx - strlen(cli_prompt));
+    return(pcb->tail_idx);
 }
 
 static bool pcb_is_empty(PCB_Struct *pcb)
 {
-    return(pcb->tail_idx == strlen(cli_prompt));
+    return(pcb->tail_idx == 0);
 }
 
 static void pcb_add_char(
@@ -179,168 +200,9 @@ static bool pcb_read_next_char(
     }
 }
 
-// -----------------------------------------------------------------------------+-
-// Add a new incoming character to the pending command buffer;
-// -----------------------------------------------------------------------------+-
-static eTxState process_new_input_char(uint8_t new_byte)
-{
-    bool        eol = false;
-    PCB_Struct *pcb_ptr = &Double_PCB[Cmd_In_Progress];
-
-    // Stay in echo queue state unless we find a reason to do otherwise;
-    eTxState  next_state = eTxState_Echo_Queue;
-
-    // Test for 'Enter' keypress
-    if(new_byte == '\r') {
-        // around here, we prefer our EOL delimiters as newlines;
-        pcb_add_char(pcb_ptr, '\n');
-        eol = true;
-    }
-    else {
-        pcb_add_char(pcb_ptr, new_byte);
-    }
-    // TODO: Future, process backspace
-
-    // if the buffer is full, count that as an EOL
-    if(pcb_is_full(pcb_ptr)) {
-        eol = true;
-    }
-
-    // Process EOL;
-    if(eol) {
-        if(1 == pcb_strlen(pcb_ptr)) {
-            // User just hit enter key at prompt
-            // Reset the PCB and refresh the CLI;
-            pcb_reset(pcb_ptr);
-            next_state = eTxState_CLI_Refresh;
-        }
-        else {
-            // Notify client that the input command line is ready for consumption;
-            Cmd_Ready = Cmd_In_Progress;
-            if(input_data_avail != NULL) {
-                uint32_t len = pcb_strlen(pcb_ptr);
-                // INVOKE CALLBACK!
-                input_data_avail(len);
-            }
-
-            // Swap the double buffers and reset the one newly in-progress;
-            Cmd_In_Progress = (Cmd_Ready == BUFF_A) ? BUFF_B : BUFF_A;
-            pcb_reset(&Double_PCB[Cmd_In_Progress]);
-        }
-    }
-    return next_state;
-}
-
-static eTxState service_the_echo_queue(uint8_t *next_byte)
-{
-    eTxState    next_state;
-
-    // Assumes the echo queue is not empty;
-    *next_byte = RB_Read_Byte_From_Head(&echo_queue);
-    next_state = process_new_input_char(*next_byte);
-
-    if(*next_byte == '\r') {
-        // record the need to xmit an LF to accompany the CR;
-        // this should happen on the next invocation of the ISR;
-        LF_NEEDED = true;
-    }
-    return next_state;
-}
-
-static eTxState service_the_client_queue(uint8_t *next_byte)
-{
-    eTxState    next_state;
-
-    // Assumes the client queue is not empty;
-    *next_byte = RB_Read_Byte_From_Head(&client_tx_queue);
-    next_state = eTxState_Client_Queue;
-
-    if(*next_byte == '\n') {
-        // record the need to xmit an CR to accompany the LF;
-        // this will happen on the next invocation of the ISR;
-        CR_NEEDED = true;
-    }
-    return next_state;
-}
 
 // -----------------------------------------------------------------------------+-
-// State Handlers
-// -----------------------------------------------------------------------------+-
-static eTxState handle_txe_disabled_state(uint8_t *next_byte)
-{
-    eTxState    next_state;
-
-    if(RB_Is_Not_Empty(&echo_queue)) {
-        next_state = service_the_echo_queue(next_byte);
-    }
-    else if(RB_Is_Not_Empty(&client_tx_queue)) {
-        next_state = service_the_client_queue(next_byte);
-    }
-    else {
-        next_state = eTxState_TXE_Disabled;
-    }
-    return next_state;
-}
-
-static eTxState handle_cli_refresh_state(uint8_t *next_byte)
-{
-    eTxState    next_state;
-    PCB_Struct *pcb_ptr = &Double_PCB[Cmd_In_Progress];
-
-    if(pcb_read_next_char(pcb_ptr, next_byte)) {
-        next_state = eTxState_CLI_Refresh;
-    }
-    else if(RB_Is_Not_Empty(&echo_queue)) {
-        next_state = service_the_echo_queue(next_byte);
-    }
-    else if(RB_Is_Not_Empty(&client_tx_queue)) {
-        next_state = service_the_client_queue(next_byte);
-    }
-    else {
-        next_state = eTxState_TXE_Disabled;
-    }
-    return next_state;
-}
-
-static eTxState handle_echo_queue_state(uint8_t *next_byte)
-{
-    eTxState    next_state;
-
-    if(RB_Is_Not_Empty(&echo_queue)) {
-        next_state = service_the_echo_queue(next_byte);
-    }
-    else if(RB_Is_Not_Empty(&client_tx_queue)) {
-        next_state = service_the_client_queue(next_byte);
-    }
-    else {
-        next_state = eTxState_TXE_Disabled;
-    }
-    return next_state;
-}
-
-static eTxState handle_client_queue_state(uint8_t *next_byte)
-{
-    eTxState    next_state;
-    PCB_Struct *pcb_ptr;
-
-    if(RB_Is_Not_Empty(&client_tx_queue)) {
-        // Continue servicing the client queue until it is empty;
-        next_state = service_the_client_queue(next_byte);
-    }
-    else {
-        // Then refresh the user's command line;
-        pcb_ptr = &Double_PCB[Cmd_In_Progress];
-        pcb_reset_refresh(pcb_ptr);
-        pcb_read_next_char(pcb_ptr, next_byte);
-        next_state = eTxState_CLI_Refresh;
-    }
-    return next_state;
-}
-
-
-
-// -----------------------------------------------------------------------------+-
-// Helper function to signal to the USART peripheral
+// Helper function to signal to the USART peripheral hardware
 // that new TX data is available for transmission onto the wire;
 // -----------------------------------------------------------------------------+-
 static void tx_data_available(void)
@@ -356,64 +218,198 @@ static void tx_data_available(void)
     LL_USART_EnableIT_TXE(USART2);
 };
 
+
+// -----------------------------------------------------------------------------+-
+// -----------------------------------------------------------------------------+-
+static void echo_this_char_to_terminal(uint8_t given_char)
+{
+    if(RB_Is_Full(&echo_rb)) {
+        echo_rb_overflow++;
+    }
+    else {
+        RB_Write_Byte_To_Tail(&echo_rb, given_char);
+    }
+}
+
+// -----------------------------------------------------------------------------+-
+// -----------------------------------------------------------------------------+-
+static void echo_cli_prompt_to_terminal(void)
+{
+    for( int c=0; c < strlen(cli_prompt); c++)
+    {
+        echo_this_char_to_terminal(cli_prompt[c]);
+    }
+}
+
+// -----------------------------------------------------------------------------+-
+// -----------------------------------------------------------------------------+-
+static void echo_pcb_to_terminal(PCB_Struct *pcb_ptr)
+{
+    uint8_t pcb_char;
+
+    pcb_reset_read_idx(pcb_ptr);
+    while(pcb_read_next_char(pcb_ptr, &pcb_char)) {
+        echo_this_char_to_terminal(pcb_char);
+    }
+}
+
+
+// -----------------------------------------------------------------------------+-
+// Helper function to process an incoming character from the user's terminal;
+//
+// TODO: handle backspace
+// TODO: handle escape to refresh command line;
+// -----------------------------------------------------------------------------+-
+static void process_input_char(uint8_t given_char)
+{
+    PCB_Struct *pcb_ptr = &Double_PCB[Cmd_In_Progress];
+
+    if(pcb_is_full(pcb_ptr)) {
+        // Treat this as if the last character entered was a CR;
+        given_char = '\r';
+    }
+
+    if(given_char == '\r') {
+        // The user has pressed 'Enter';
+        // Around here, we prefer our EOL delimiters as newlines :-)
+        pcb_add_char(pcb_ptr, '\n');
+
+        // echo LF back to the user; CR will get added later;
+        echo_this_char_to_terminal('\n');
+
+        if(cmd_entry_in_progress) {
+
+            if(pcb_strlen(pcb_ptr) > 1) {
+                // There is a non-empty command ready to be consumed;
+                Cmd_Ready = Cmd_In_Progress;
+
+                if(input_data_avail != NULL) {
+                    // INVOKE CLIENT CALLBACK!
+                    uint32_t len = pcb_strlen(pcb_ptr);
+                    input_data_avail(len);
+                }
+
+                // Swap the double buffers and reset the one newly in-progress;
+                Cmd_In_Progress = (Cmd_Ready == BUFF_A) ? BUFF_B : BUFF_A;
+                pcb_reset(&Double_PCB[Cmd_In_Progress]);
+            }
+            else {
+                // Empty command line, just prompt the user once again;
+                echo_cli_prompt_to_terminal();
+            }
+        }
+        else {
+            // The user pressed Enter, but does not currently have the cli prompt;
+            echo_cli_prompt_to_terminal();
+            echo_pcb_to_terminal(pcb_ptr);
+            cmd_entry_in_progress = true;
+        }
+    }
+    else if(!isprint(given_char)) {
+        // Filter out any non printable character by doing nothing here.
+    }
+    else {
+        // User entered something other than CR;
+        if(!cmd_entry_in_progress) {
+            // Restablish the user's pending command line.
+            echo_this_char_to_terminal('\r');
+            echo_this_char_to_terminal('\n');
+            echo_cli_prompt_to_terminal();
+            echo_pcb_to_terminal(pcb_ptr);
+            cmd_entry_in_progress = true;
+        }
+        pcb_add_char(pcb_ptr, given_char);
+        echo_this_char_to_terminal(given_char);
+    }
+}
+
+
 // -----------------------------------------------------------------------------+-
 // Helper function to do the needful when the USART TDR is empty;
+// NOTICE: this is called by the USART IRQ Handler;
+//
+// Also note: any write to the TDR will clear
+// the TXE bit in the USART peripheral;
 // -----------------------------------------------------------------------------+-
 static void usart_tdr_empty(void)
 {
-    eTxState next_state;
-    uint8_t  next_byte;
+    uint8_t  next_char;
+    bool     write_tdr = false;
 
-    if(LF_NEEDED) {
-        // Do not change the current state;
-        // Transmit a Line Feed character;
-        LL_USART_TransmitData8(USART2, '\n');
-        LF_NEEDED = false;
-        return;
+    static bool  CR_Needed            = false;
+    static bool  response_in_progress = false;
+    static bool  trace_in_progress    = false;
+    static bool  echo_in_progress     = false;
+
+    if(RB_Is_Empty(&response_rb)) response_in_progress = false;
+    if(RB_Is_Empty(&trace_rb))    trace_in_progress    = false;
+    if(RB_Is_Empty(&echo_rb))     echo_in_progress     = false;
+
+    // -------------------------------------------------------------+-
+    // Exhaustively consume any queue we've started reading;
+    // -------------------------------------------------------------+-
+    if(CR_Needed) {
+        next_char = '\r';
+        write_tdr = true;
+        CR_Needed = false;
     }
-    if(CR_NEEDED) {
-        // Do not change the current state;
-        // Transmit a Carriage Return character;
-        LL_USART_TransmitData8(USART2, '\r');
-        CR_NEEDED = false;
-        return;
+    if(response_in_progress) {
+        next_char = RB_Read_Byte_From_Head(&response_rb);
+        write_tdr = true;
+        cmd_entry_in_progress = false;
     }
-
-    switch (TXE_ISR_State) {
-
-    case eTxState_TXE_Disabled:
-        next_state = handle_txe_disabled_state(&next_byte);
-        // Trace_Red_Toggle();
-        break;
-
-    case eTxState_CLI_Refresh:
-        next_state = handle_cli_refresh_state(&next_byte);
-        break;
-
-    case eTxState_Echo_Queue:
-        next_state = handle_echo_queue_state(&next_byte);
-        break;
-
-    case eTxState_Client_Queue:
-        next_state = handle_client_queue_state(&next_byte);
-        break;
-
-    default:
-        // ADD ASSERT false HERE;
-        break;
+    else if(trace_in_progress) {
+        next_char = RB_Read_Byte_From_Head(&trace_rb);
+        write_tdr = true;
+        cmd_entry_in_progress = false;
     }
-
-    if(next_state == eTxState_TXE_Disabled) {
-        LL_USART_DisableIT_TXE(USART2);
+    else if(echo_in_progress) {
+        next_char = RB_Read_Byte_From_Head(&echo_rb);
+        write_tdr = true;
     }
     else {
-        // Write the next tx byte to the TDR register;
-        // this will clear the TXE bit;
-        LL_USART_TransmitData8(USART2, next_byte);
+        // -------------------------------------------------------------+-
+        // Otherwise process any new input characters;
+        // Input chars from the terminal are
+        // added to the PCB and sent to the echo queue;
+        // -------------------------------------------------------------+-
+        while(RB_Is_Not_Empty(&input_rb)) {
+            next_char = RB_Read_Byte_From_Head(&input_rb);
+            process_input_char(next_char);
+        }
+
+        // -------------------------------------------------------------+-
+        // And then pick a new queue to start consuming;
+        // -------------------------------------------------------------+-
+        if(RB_Is_Not_Empty(&echo_rb)) {
+            next_char = RB_Read_Byte_From_Head(&echo_rb);
+            write_tdr = true;
+        }
+
+        if(RB_Is_Not_Empty(&response_rb)) {
+            next_char = RB_Read_Byte_From_Head(&response_rb);
+            write_tdr = true;
+            cmd_entry_in_progress = false;
+        }
+
+        if(RB_Is_Not_Empty(&trace_rb)) {
+            next_char = RB_Read_Byte_From_Head(&trace_rb);
+            write_tdr = true;
+            cmd_entry_in_progress = false;
+        }
     }
-    TXE_ISR_State = next_state;
+
+    if(write_tdr) {
+        LL_USART_TransmitData8(USART2, next_char);
+        if(next_char == '\n') CR_Needed = true;
+    }
+    else {
+        LL_USART_DisableIT_TXE(USART2);
+    }
     return;
 }
+
+
 
 // -----------------------------------------------------------------------------+-
 // USART RDR Not Empty;
@@ -428,17 +424,17 @@ static void usart_rdr_notempty(void)
     // Read the RX byte; this also clears the RXNE bit;
     uint8_t rx_byte = LL_USART_ReceiveData8(USART2);
 
-    if(RB_Is_Full(&echo_queue)) {
+    if(RB_Is_Full(&input_rb)) {
         // All we can do is throw the byte away;
-        // Perhaps someday we can increment an error counter here; TODO
+        input_rb_overflow++;
     }
     else {
-        //Trace_Blue_Toggle();
-        RB_Write_Byte_To_Tail( &echo_queue, rx_byte );
+        RB_Write_Byte_To_Tail( &input_rb, rx_byte );
         tx_data_available();
     }
     return;
 }
+
 
 // =============================================================================================#=
 // Public API Functions
@@ -449,36 +445,51 @@ static void usart_rdr_notempty(void)
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 
 // -----------------------------------------------------------------------------+-
-// PUT BEST EFFORT
+// PUT STRING BEST EFFORT
 //
-// Write the given content into the Client Tx Queue (ring buffer);
+// Write the given content into the appropriate ring buffer;
 // -----------------------------------------------------------------------------+-
-void USART_IT_CLI_Put_Best_Effort(uint8_t *given_buff_addr, uint8_t given_buff_len)
+void USART_IT_CLI_Put_Response(uint8_t *given_buff_addr, uint8_t given_buff_len)
 {
-    uint32_t num_slots = RB_Slots_Available(&client_tx_queue);
+    uint32_t num_slots = RB_Slots_Available(&response_rb);
 
     if (num_slots < given_buff_len) {
-        // insufficient space for given content;
-        // buffer content is lost;
+        response_rb_overflow++;
         return;
     }
-
-    // Copy given content into buffer;
     for(int idx=0; idx<given_buff_len; idx++) {
-        RB_Write_Byte_To_Tail( &client_tx_queue, given_buff_addr[idx] );
+        RB_Write_Byte_To_Tail( &response_rb, given_buff_addr[idx] );
     }
+    tx_data_available();
+    return;
+}
 
+void USART_IT_CLI_Put_Trace(uint8_t *given_buff_addr, uint8_t given_buff_len)
+{
+    uint32_t num_slots = RB_Slots_Available(&trace_rb);
+
+    if (num_slots < given_buff_len) {
+        trace_rb_overflow++;
+        return;
+    }
+    for(int idx=0; idx<given_buff_len; idx++) {
+        RB_Write_Byte_To_Tail( &trace_rb, given_buff_addr[idx] );
+    }
     tx_data_available();
     return;
 }
 
 // -----------------------------------------------------------------------------+-
-// TX SLOTS AVAILABLE
+// SLOTS AVAILABLE
 // -----------------------------------------------------------------------------+-
-uint32_t USART_IT_CLI_Tx_Slots_Available(void)
+uint32_t USART_IT_CLI_Response_Slots_Available(void)
 {
-    uint32_t num_slots = RB_Slots_Available(&client_tx_queue);
-    return   num_slots;
+    return RB_Slots_Available(&response_rb);
+}
+
+uint32_t USART_IT_CLI_Trace_Slots_Available(void)
+{
+    return RB_Slots_Available(&trace_rb);
 }
 
 
@@ -528,7 +539,7 @@ uint32_t USART_IT_CLI_Get_Line(
         return idx;
     }
 
-    pcb_reset_get_cmd(pcb_ptr);
+    pcb_reset_read_idx(pcb_ptr);
 
     while(idx<available_len) {
         pcb_read_next_char(pcb_ptr, &next_byte);
