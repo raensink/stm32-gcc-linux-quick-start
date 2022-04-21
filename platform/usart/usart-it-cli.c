@@ -11,6 +11,8 @@
 // For example: the TXE bit in USART_ISR and TXEIE in USART_CR1.
 // See Figure 443 on page 1383 of the reference manual.
 //
+// TODO: if you slam too many chars into the command line all at once, things go splat somewhere.
+//
 // SPDX-License-Identifier: MIT-0
 // =============================================================================================#=
 
@@ -39,10 +41,10 @@
 // Internal Ring Buffers
 // Size must be a power of two;
 // -----------------------------------------------------------------------------+-
-static uint8_t input_buffer[32];      // RX chars from the user's terminal;
-static uint8_t echo_buffer[32];       // TX chars to be echo'd back to the user;
-static uint8_t trace_buffer[1024];      // TX chars from the software trace facility;
-static uint8_t response_buffer[512];    // TX response chars from command processing;
+static uint8_t input_buffer[64];      // RX chars from the user's terminal;
+static uint8_t echo_buffer[64];       // TX chars to be echo'd back to the user;
+static uint8_t trace_buffer[1024];    // TX chars from the software trace facility;
+static uint8_t response_buffer[512];  // TX response chars from command processing;
 
 static Ring_Buffer input_rb = {
     .buff = input_buffer,
@@ -74,24 +76,26 @@ static Ring_Buffer response_rb = {
 
 
 // -----------------------------------------------------------------------------+-
-// Callback for 'input data available' as
-// registered by the client application layer.
-// -----------------------------------------------------------------------------+-
-USART_IT_CLI_Input_Available_Callback input_data_avail = NULL;
-
-// -----------------------------------------------------------------------------+-
 // This is how we prompt the user.
 // -----------------------------------------------------------------------------+-
 static char *cli_prompt = "CLI > ";
 
 // -----------------------------------------------------------------------------+-
-// Set true when the user is actively entering a command;
+// Callback for 'input data available' as
+// registered by the client application layer.
+// This is called when there is a command line ready
+// for consumption by the client application layer.
 // -----------------------------------------------------------------------------+-
-static bool cmd_entry_in_progress = false;
+USART_IT_CLI_Input_Available_Callback input_data_avail = NULL;
 
 // -----------------------------------------------------------------------------+-
-// Pending Command Buffer (PCB)
-//
+// Set true when the user's command line has been
+// stomped upon by any non-echo character output;
+// -----------------------------------------------------------------------------+-
+static bool restore_user_cmd_line = true;
+
+// -----------------------------------------------------------------------------+-
+// PENDING COMMAND BUFFER (PCB)
 // This is where we build up the user's command line before
 // it is delivered up to the application client.
 // -----------------------------------------------------------------------------+-
@@ -121,10 +125,10 @@ static PCB_Struct Double_PCB[] = {
     },
 };
 
-// -----------------------------------------------------------------------------+-
+// -------------------------------------------------------------+-
 // Keep track of which buffer is pending/in-progress
 // and which, if any, is ready to be consumed.
-// -----------------------------------------------------------------------------+-
+// -------------------------------------------------------------+-
 #define BUFF_NONE     (-1)
 #define BUFF_A         (0)
 #define BUFF_B         (1)
@@ -243,7 +247,7 @@ static void echo_cli_prompt_to_terminal(void)
 
 // -----------------------------------------------------------------------------+-
 // -----------------------------------------------------------------------------+-
-static void echo_pcb_to_terminal(PCB_Struct *pcb_ptr)
+static void echo_pending_chars_to_terminal(PCB_Struct *pcb_ptr)
 {
     uint8_t pcb_char;
 
@@ -262,62 +266,76 @@ static void echo_pcb_to_terminal(PCB_Struct *pcb_ptr)
 // -----------------------------------------------------------------------------+-
 static void process_input_char(uint8_t given_char)
 {
+    // All new chars get added to the PCB in progress;
     PCB_Struct *pcb_ptr = &Double_PCB[Cmd_In_Progress];
 
+    // -----------------------------------------------------------------------------+-
+    // Restablish the user's command line, as needed.
+    // -----------------------------------------------------------------------------+-
+    if(restore_user_cmd_line) {
+        echo_this_char_to_terminal('\r');
+
+        echo_cli_prompt_to_terminal();
+        echo_pending_chars_to_terminal(pcb_ptr);
+
+        restore_user_cmd_line = false;
+    }
+
+    // -----------------------------------------------------------------------------+-
+    // Process the input char;
+    // -----------------------------------------------------------------------------+-
     if(pcb_is_full(pcb_ptr)) {
         // Treat this as if the last character entered was a CR;
         given_char = '\r';
     }
 
+    // -----------------------------------------------------+-
+    // Check for 'Enter' key, and process same;
+    // -----------------------------------------------------+-
     if(given_char == '\r') {
-        // The user has pressed 'Enter';
-        // Around here, we prefer our EOL delimiters as newlines :-)
-        pcb_add_char(pcb_ptr, '\n');
 
-        // echo LF back to the user; CR will get added later;
-        echo_this_char_to_terminal('\n');
+        if(pcb_strlen(pcb_ptr) > 0) {
+            // There is a non-empty command ready to be consumed;
+            // Add the EOL delimiter to the end of the PCB
+            // and notify the client;
 
-        if(cmd_entry_in_progress) {
+            // Note: around here, we prefer our EOL delimiters as newlines;
+            pcb_add_char(pcb_ptr, '\n');
+            echo_this_char_to_terminal(given_char);
 
-            if(pcb_strlen(pcb_ptr) > 1) {
-                // There is a non-empty command ready to be consumed;
-                Cmd_Ready = Cmd_In_Progress;
+            Cmd_Ready = Cmd_In_Progress;
 
-                if(input_data_avail != NULL) {
-                    // INVOKE CLIENT CALLBACK!
-                    uint32_t len = pcb_strlen(pcb_ptr);
-                    input_data_avail(len);
-                }
-
-                // Swap the double buffers and reset the one newly in-progress;
-                Cmd_In_Progress = (Cmd_Ready == BUFF_A) ? BUFF_B : BUFF_A;
-                pcb_reset(&Double_PCB[Cmd_In_Progress]);
+            // INVOKE CLIENT CALLBACK! (if there is one)
+            if(input_data_avail != NULL) {
+                input_data_avail( pcb_strlen(pcb_ptr) );
             }
-            else {
-                // Empty command line, just prompt the user once again;
-                echo_cli_prompt_to_terminal();
-            }
+
+            // Swap the double buffs and reset the buff newly in-progress;
+            Cmd_In_Progress = (Cmd_Ready == BUFF_A) ? BUFF_B : BUFF_A;
+            pcb_reset(&Double_PCB[Cmd_In_Progress]);
+            pcb_ptr = &Double_PCB[Cmd_In_Progress];
         }
         else {
-            // The user pressed Enter, but does not currently have the cli prompt;
+            // Empty command line,
+            // just prompt the user again and
+            // do not add the CR to the PCB;
+            echo_this_char_to_terminal('\n');
             echo_cli_prompt_to_terminal();
-            echo_pcb_to_terminal(pcb_ptr);
-            cmd_entry_in_progress = true;
         }
     }
+
+    // -----------------------------------------------------+-
+    // Otherwise, filter out any non printable chars;
+    // -----------------------------------------------------+-
     else if(!isprint(given_char)) {
         // Filter out any non printable character by doing nothing here.
     }
+
+    // -----------------------------------------------------+-
+    // Otherwise, add any other char to the PCB and
+    // echo it back to the terminal;
+    // -----------------------------------------------------+-
     else {
-        // User entered something other than CR;
-        if(!cmd_entry_in_progress) {
-            // Restablish the user's pending command line.
-            echo_this_char_to_terminal('\r');
-            echo_this_char_to_terminal('\n');
-            echo_cli_prompt_to_terminal();
-            echo_pcb_to_terminal(pcb_ptr);
-            cmd_entry_in_progress = true;
-        }
         pcb_add_char(pcb_ptr, given_char);
         echo_this_char_to_terminal(given_char);
     }
@@ -353,15 +371,15 @@ static void usart_tdr_empty(void)
         write_tdr = true;
         CR_Needed = false;
     }
-    if(response_in_progress) {
+    else if(response_in_progress) {
         next_char = RB_Read_Byte_From_Head(&response_rb);
         write_tdr = true;
-        cmd_entry_in_progress = false;
+        restore_user_cmd_line = true;
     }
     else if(trace_in_progress) {
         next_char = RB_Read_Byte_From_Head(&trace_rb);
         write_tdr = true;
-        cmd_entry_in_progress = false;
+        restore_user_cmd_line = true;
     }
     else if(echo_in_progress) {
         next_char = RB_Read_Byte_From_Head(&echo_rb);
@@ -385,21 +403,20 @@ static void usart_tdr_empty(void)
             next_char = RB_Read_Byte_From_Head(&echo_rb);
             write_tdr = true;
         }
-
-        if(RB_Is_Not_Empty(&response_rb)) {
+        else if(RB_Is_Not_Empty(&response_rb)) {
             next_char = RB_Read_Byte_From_Head(&response_rb);
             write_tdr = true;
-            cmd_entry_in_progress = false;
+            restore_user_cmd_line = true;
         }
-
-        if(RB_Is_Not_Empty(&trace_rb)) {
+        else if(RB_Is_Not_Empty(&trace_rb)) {
             next_char = RB_Read_Byte_From_Head(&trace_rb);
             write_tdr = true;
-            cmd_entry_in_progress = false;
+            restore_user_cmd_line = true;
         }
     }
 
     if(write_tdr) {
+        Trace_Red_Toggle();
         LL_USART_TransmitData8(USART2, next_char);
         if(next_char == '\n') CR_Needed = true;
     }

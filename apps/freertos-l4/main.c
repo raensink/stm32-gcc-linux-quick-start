@@ -227,7 +227,7 @@ static void prvQueueReceiveTask( void *pvParameters )
         // Set the LED corresponding to the value received;
         if( ulReceivedValue == 100UL )
         {
-            Trace_Red_Toggle();
+            // Trace_Red_Toggle();
         }
         else if( ulReceivedValue == 101UL )
         {
@@ -298,7 +298,7 @@ int main( void )
     SW_Trace_External_LED_Init();
     SW_Trace_OnBoard_LED_Init();
 
-    // USART_IT_CLI_Register_Rx_Callback(rx_data_avail_callback);
+    USART_IT_CLI_Register_Rx_Callback(rx_data_avail_callback);
     USART_IT_CLI_Module_Init( MCU_Clock_Get_PCLK1_Frequency_Hz() );
 
     xQueue = xQueueCreate( mainQUEUE_LENGTH, sizeof( unsigned long ) );
