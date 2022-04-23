@@ -3,14 +3,6 @@
 // USART INTERRUPT DRIVEN CLI API
 // platform/usart/usart-it-cli.c
 //
-// Regarding interrupts...
-// Bear in mind that there is one interrupt from the USART peripheral
-// which can be enabled and disabled in the NVIC, USART2_IRQn for example.
-// In addition, there are a number of status bits in the USART ISR register
-// that will generate the peripheral level interrupt if enabled to do so.
-// For example: the TXE bit in USART_ISR and TXEIE in USART_CR1.
-// See Figure 443 on page 1383 of the reference manual.
-//
 // TODO: if you slam too many chars into the command line all at once, things go splat somewhere.
 //
 // SPDX-License-Identifier: MIT-0
@@ -93,6 +85,17 @@ USART_IT_CLI_Input_Available_Callback input_data_avail = NULL;
 // stomped upon by any non-echo character output;
 // -----------------------------------------------------------------------------+-
 static bool restore_user_cmd_line = true;
+
+// -----------------------------------------------------------------------------+-
+// XON / XOFF
+// This flag supports in-band software flow control using CTRL+S and CTRL+Q;
+//
+// Setting XON to false will stop the software trace output, but
+// still allow command response output
+//
+// Setting XON back to true will return the CLI to normal output.
+// -----------------------------------------------------------------------------+-
+static bool XON = true;
 
 // -----------------------------------------------------------------------------+-
 // PENDING COMMAND BUFFER (PCB)
@@ -190,6 +193,11 @@ static void pcb_add_char(
     pcb->tail_idx++;
 }
 
+static void pcb_erase_last_char(PCB_Struct *pcb)
+{
+    if(pcb->tail_idx > 0) pcb->tail_idx--;
+}
+
 static bool pcb_read_next_char(
     PCB_Struct *pcb,
     uint8_t    *new_byte)
@@ -260,9 +268,6 @@ static void echo_pending_chars_to_terminal(PCB_Struct *pcb_ptr)
 
 // -----------------------------------------------------------------------------+-
 // Helper function to process an incoming character from the user's terminal;
-//
-// TODO: handle backspace
-// TODO: handle escape to refresh command line;
 // -----------------------------------------------------------------------------+-
 static void process_input_char(uint8_t given_char)
 {
@@ -279,7 +284,6 @@ static void process_input_char(uint8_t given_char)
     // processing below handle the restoration of the prompt.
     // -----------------------------------------------------------------------------+-
     if(restore_user_cmd_line && given_char != '\r') {
-        Trace_Red_Toggle();
         echo_this_char_to_terminal('\r');
 
         echo_cli_prompt_to_terminal();
@@ -297,7 +301,7 @@ static void process_input_char(uint8_t given_char)
     }
 
     // -----------------------------------------------------+-
-    // Check for 'Enter' key, and process same;
+    // Check for and process the 'Enter' key;
     // -----------------------------------------------------+-
     if(given_char == '\r') {
 
@@ -328,8 +332,49 @@ static void process_input_char(uint8_t given_char)
             // do not add the CR to the PCB;
             echo_this_char_to_terminal('\n');
             echo_cli_prompt_to_terminal();
-            Trace_Blue_Toggle();
         }
+    }
+
+    // -----------------------------------------------------+-
+    // The ESC key is our recommended method for the user
+    // to restore their command line without having to
+    // enter an unnecessary printable character.
+    // -----------------------------------------------------+-
+    else if(given_char == '\e') {
+        // In reality, ESC is treated just like
+        // any other non-printable character;
+    }
+
+    // -----------------------------------------------------+-
+    // C-s will suspend all trace output to the CLI;
+    // C-q will resume trace output;
+    // -----------------------------------------------------+-
+    else if(given_char == '\x13') {
+        XON = false; // Control S
+    }
+    else if(given_char == '\x11') {
+        XON = true; // Control Q
+    }
+
+    // -----------------------------------------------------+-
+    // Backspace character;
+    // So far, only CNTRL+H seems to work
+    // -----------------------------------------------------+-
+    else if(
+        given_char == '\b' ||
+        given_char == '\x8' ||
+        given_char == '\127')
+    {
+        Trace_Blue_Toggle();
+        pcb_erase_last_char(pcb_ptr);
+
+        // Send backspace char;
+        echo_this_char_to_terminal('\b');
+
+        // Send escape code to clear line from cursor right;
+        echo_this_char_to_terminal('\x1b');
+        echo_this_char_to_terminal('[');
+        echo_this_char_to_terminal('K');
     }
 
     // -----------------------------------------------------+-
@@ -339,6 +384,9 @@ static void process_input_char(uint8_t given_char)
         // Filter out any non printable character by doing nothing here.
     }
 
+    // -----------------------------------------------------+-
+    // perhaps more filtering is needed?
+    // -----------------------------------------------------+-
     // -----------------------------------------------------+-
     // Otherwise, add any other char to the PCB and
     // echo it back to the terminal;
@@ -406,20 +454,25 @@ static void usart_tdr_empty(void)
 
         // -------------------------------------------------------------+-
         // And then pick a new queue to start consuming;
+        // We only start reading from the trace log
+        // if XON is enabled;
         // -------------------------------------------------------------+-
         if(RB_Is_Not_Empty(&echo_rb)) {
             next_char = RB_Read_Byte_From_Head(&echo_rb);
             write_tdr = true;
+            echo_in_progress = true;
         }
         else if(RB_Is_Not_Empty(&response_rb)) {
             next_char = RB_Read_Byte_From_Head(&response_rb);
             write_tdr = true;
             restore_user_cmd_line = true;
+            response_in_progress = true;
         }
-        else if(RB_Is_Not_Empty(&trace_rb)) {
+        else if(XON && RB_Is_Not_Empty(&trace_rb)) {
             next_char = RB_Read_Byte_From_Head(&trace_rb);
             write_tdr = true;
             restore_user_cmd_line = true;
+            trace_in_progress = true;
         }
     }
 
@@ -703,4 +756,10 @@ void USART_IT_CLI_Module_Init(uint32_t given_PCLK1_frequency_in_hertz)
     // LL_USART_EnableIT_TC(USART2);
     // LL_USART_DisableIT_TXE(USART2);
 };
+
+// Reserved for debug;
+// Trace_Red_Toggle();
+// Trace_Blue_Toggle();
+// Trace_Red_On();
+// Trace_Red_Off();
 

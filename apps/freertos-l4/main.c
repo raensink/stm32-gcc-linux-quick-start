@@ -219,9 +219,9 @@ static void prvQueueReceiveTask( void *pvParameters )
         xQueueReceive( xQueue, &ulReceivedValue, portMAX_DELAY );
 
         count++;
-        if(count%64 == 0) {
+        if(count%16 == 0) {
             strcpy(Input_Buffer, "main: we are here!\n");
-            USART_IT_CLI_Put_Response(Input_Buffer, strlen(Input_Buffer));
+            USART_IT_CLI_Put_Trace(Input_Buffer, strlen(Input_Buffer));
         }
 
         // Set the LED corresponding to the value received;
@@ -261,7 +261,7 @@ void USART2_IRQHandler(void)
 // -----------------------------------------------------------------------------+-
 static void rx_data_avail_callback(uint32_t len)
 {
-    Trace_Red_Toggle();
+    // Trace_Red_Toggle();
 
     strcpy(Input_Buffer, "\nmain: ");
     USART_IT_CLI_Put_Response(Input_Buffer, strlen(Input_Buffer));
