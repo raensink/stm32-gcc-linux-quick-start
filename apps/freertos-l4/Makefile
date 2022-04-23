@@ -18,8 +18,8 @@
 # ------------------------------------------------------+-
 # Application
 # ------------------------------------------------------+-
-INC_DIRS   = apps/freertos-l4
 SRC_FILES  = apps/freertos-l4/main.c
+INC_DIRS   = apps/freertos-l4
 
 
 # ------------------------------------------------------+-
@@ -31,25 +31,25 @@ SRC_FILES += core/FreeRTOS-Kernel/list.c
 SRC_FILES += core/FreeRTOS-Kernel/timers.c
 SRC_FILES += core/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c
 SRC_FILES += core/FreeRTOS-Kernel/portable/MemMang/heap_1.c
-
 INC_DIRS  += core/FreeRTOS-Kernel/include
 INC_DIRS  += core/FreeRTOS-Kernel/portable/GCC/ARM_CM4F
 
 
 # ----------------------------------------------------------------------+-
-# Platform
+# Platform Modules
 # ----------------------------------------------------------------------+-
 SRC_FILES += platform/util/ring-buffer.c
 SRC_FILES += platform/usart/usart-it-cli.c
 
 # ----------------------------------------------------------------------+-
-# Core
+# Core Modules
 # ----------------------------------------------------------------------+-
-SRC_FILES += core/swtrace/swtrace-led.c
 INC_DIRS  += core/swtrace
+SRC_FILES += core/swtrace/trc-core.c
+SRC_FILES += core/swtrace/trc-adapt-default.c
+SRC_FILES += core/swtrace/trc-led.c
+
 INC_DIRS  += core/board
-
-
 
 
 # ----------------------------------------------------------------------+-

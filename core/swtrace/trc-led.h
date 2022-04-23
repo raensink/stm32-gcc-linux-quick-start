@@ -1,7 +1,8 @@
+#pragma once
 
 /*
 ================================================================================================#=
-SW Trace LED
+SOFTWARE TRACE LED
 
 This module provides some handy services for blinking LEDs.
 These may be invoked at will in various locations in the code
@@ -12,8 +13,9 @@ SPDX-License-Identifier: MIT-0
 ================================================================================================#=
 */
 
-#pragma once
-
+// -----------------------------------------------------------------------------+-
+// Include the board model appropriate to the board you are using.
+// -----------------------------------------------------------------------------+-
 #if defined( BOARD_NUCLEO_F091RC )
     #include "qs-board-model-nucleo-f091rc.h"
     #include "STM32F0xx_HAL_Driver/Inc/stm32f0xx_ll_bus.h"
@@ -156,7 +158,7 @@ SPDX-License-Identifier: MIT-0
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // Do the needful for one-time startup initialization;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-void SW_Trace_External_LED_Init(void);
-void SW_Trace_OnBoard_LED_Init(void);
+void TRC_External_LED_Init(void);
+void TRC_OnBoard_LED_Init(void);
 
 

@@ -13,9 +13,12 @@
 #include <ctype.h>
 #include <string.h>
 
-// Project dependencies
-#include "core/swtrace/swtrace-led.h"
+
+// Project Dependencies
 #include "platform/util/ring-buffer.h"
+
+#include "core/swtrace/trc-led.h"
+
 
 // STM32 Low Level Drivers
 #include "STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_bus.h"

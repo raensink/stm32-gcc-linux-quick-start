@@ -92,9 +92,15 @@ platform/cli/cli-core.c
 core/README.md
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 core/swtrace
+
 core/swtrace/README.md
-core/swtrace/swtrace-led.h
-core/swtrace/swtrace-led.c
+core/swtrace/trc-led.h
+core/swtrace/trc-led.c
+core/swtrace/trc.h
+core/swtrace/trc-core.h
+core/swtrace/trc-core.c
+core/swtrace/trc-adaptation.h
+core/swtrace/trc-adapt-default.c
 
 core/board/README.md
 core/board/qs-board-model-nucleo-f091rc.h

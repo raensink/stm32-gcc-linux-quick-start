@@ -10,15 +10,14 @@ SPDX-License-Identifier: MIT-0
 ================================================================================================#=
 */
 
-#include "core/swtrace/swtrace-led.h"
+#include "core/swtrace/trc-led.h"
 
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 // Initialize the GPIO peripherals and pins for the trace LEDs.
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
-
-void SW_Trace_External_LED_Init(void)
+void TRC_External_LED_Init(void)
 {
     // -------------------------------------------------------------+-
     // Enable the clock to the GPIO peripheral;
@@ -67,7 +66,10 @@ void SW_Trace_External_LED_Init(void)
 }
 
 
-void SW_Trace_OnBoard_LED_Init(void)
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
+void TRC_OnBoard_LED_Init(void)
 {
     // -------------------------------------------------------------+-
     // Enable AHB2 Clock to GPIO Port A in the Reset and Clock Control peripheral;
@@ -91,5 +93,6 @@ void SW_Trace_OnBoard_LED_Init(void)
     // Ensure the LED is turned off at initialization time;
     Trace_OnBrdGreen_Off();
 }
+
 
 

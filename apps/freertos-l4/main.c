@@ -16,10 +16,14 @@ SPDX-License-Identifier: MIT-0
 #include "queue.h"
 
 // Project Dependencies
-#include "core/swtrace/swtrace-led.h"
+#include "platform/usart/usart-it-cli.h"
+
+#include "core/swtrace/trc.h"
+#include "core/swtrace/trc-core.h"
+#include "core/swtrace/trc-led.h"
+
 #include "mcu/clock/mco.h"
 #include "mcu/clock/clock-tree-default-config.h"
-#include "platform/usart/usart-it-cli.h"
 
 // MCU Device Definition
 #include "CMSIS/Device/ST/STM32L4xx/Include/stm32l476xx.h"
@@ -220,14 +224,14 @@ static void prvQueueReceiveTask( void *pvParameters )
 
         count++;
         if(count%16 == 0) {
-            strcpy(Input_Buffer, "main: we are here!\n");
-            USART_IT_CLI_Put_Trace(Input_Buffer, strlen(Input_Buffer));
+            // strcpy(Input_Buffer, "main: we are here!\n");
+            // USART_IT_CLI_Put_Trace(Input_Buffer, strlen(Input_Buffer));
         }
 
         // Set the LED corresponding to the value received;
         if( ulReceivedValue == 100UL )
         {
-            // Trace_Red_Toggle();
+            Trace_Red_Toggle();
         }
         else if( ulReceivedValue == 101UL )
         {
@@ -235,7 +239,7 @@ static void prvQueueReceiveTask( void *pvParameters )
         }
         else if( ulReceivedValue == 102UL )
         {
-            // Trace_Blue_Toggle();
+            Trace_Blue_Toggle();
         }
         else if( ulReceivedValue == 103UL )
         {
@@ -261,10 +265,8 @@ void USART2_IRQHandler(void)
 // -----------------------------------------------------------------------------+-
 static void rx_data_avail_callback(uint32_t len)
 {
-    // Trace_Red_Toggle();
-
-    strcpy(Input_Buffer, "\nmain: ");
-    USART_IT_CLI_Put_Response(Input_Buffer, strlen(Input_Buffer));
+    strcpy((char *)Input_Buffer, "\nmain: ");
+    USART_IT_CLI_Put_Response(Input_Buffer, strlen((const char *)Input_Buffer));
 
     uint32_t byte_count = USART_IT_CLI_Get_Line(
         Input_Buffer, Input_Buffer_Len
@@ -294,12 +296,19 @@ int main( void )
     // Configure Microcontroller Clock Output
     MCU_Clock_MCO_Config();
 
-    // Application specific init.
-    SW_Trace_External_LED_Init();
-    SW_Trace_OnBoard_LED_Init();
+    TRC_OnBoard_LED_Init();
+    TRC_External_LED_Init();
+    TRC_Initialize();
 
     USART_IT_CLI_Register_Rx_Callback(rx_data_avail_callback);
     USART_IT_CLI_Module_Init( MCU_Clock_Get_PCLK1_Frequency_Hz() );
+
+    // -------------------------------------------------------------+-
+    // Let's Begin!
+    // -------------------------------------------------------------+-
+    trcInfo("\n");
+    trcInfo("System Reset! \n");
+    trcInfo("Begin main application initialization. \n");
 
     xQueue = xQueueCreate( mainQUEUE_LENGTH, sizeof( unsigned long ) );
 
