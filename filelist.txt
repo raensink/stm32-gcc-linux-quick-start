@@ -135,9 +135,11 @@ mcu/clock/mco-stm32l4.c
 ----------------------------------------+-
 
 ----------------------------------------------------------------+-
-mcu/linker-script/README.md
+mcu/linker-script
 ----------------------------------------------------------------+-
-mcu/STM32CubeF0
+mcu/linker-script/README.md
+mcu/linker-script/STM32F0-GCC-STM32F091RCTx_FLASH.ld
+mcu/linker-script/STM32L4-GCC-STM32L476RGTx_FLASH.ld
 
 ================================================================================================#=
 mcu/STM32CubeL4

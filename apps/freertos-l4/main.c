@@ -180,6 +180,8 @@ static void prvQueueSendTask( void *pvParameters )
     /* Initialise xNextWakeTime - this only needs to be done once. */
     xNextWakeTime = xTaskGetTickCount();
 
+    trcInfo("System Reset! \n");
+
     for( ;; )
     {
         /* Place this task in the blocked state until it is time to run again.
@@ -306,9 +308,9 @@ int main( void )
     // -------------------------------------------------------------+-
     // Let's Begin!
     // -------------------------------------------------------------+-
-    trcInfo("\n");
-    trcInfo("System Reset! \n");
-    trcInfo("Begin main application initialization. \n");
+    // trcInfo("\n");
+    // trcInfo("System Reset! \n");
+    // trcInfo("Begin main application initialization. \n");
 
     xQueue = xQueueCreate( mainQUEUE_LENGTH, sizeof( unsigned long ) );
 

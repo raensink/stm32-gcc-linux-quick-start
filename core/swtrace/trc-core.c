@@ -2,7 +2,7 @@
 /*
 ================================================================================================#=
 TRACE CORE
-core\swtrace\trc-core.c
+core/swtrace/trc-core.c
 
 Description:
     This file contains the core software trace implementation.
@@ -13,6 +13,8 @@ SPDX-License-Identifier: MIT-0
 
 #include <stdbool.h>
 #include <string.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 
 #include "trc-core.h"
@@ -25,13 +27,12 @@ SPDX-License-Identifier: MIT-0
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
 static bool ModuleInitialized = false;
 
-static trcLvl MinLevelToPrint = trcLvlDebug;
+static trcLvl MinLevelToDispatch = trcLvlDebug;
 
-// @@@@ TEMP
-uint8_t  *temp_message      = (uint8_t *)"Hello, World! \n";
-uint32_t  temp_message_len;
-// @@@@ TEMP
-
+#ifndef CONTENT_BUFFER_SIZE
+#define CONTENT_BUFFER_SIZE (140U)
+#endif
+static char Content_Buffer[CONTENT_BUFFER_SIZE];
 
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~+~
@@ -41,17 +42,45 @@ uint32_t  temp_message_len;
 
 // ---------------------------------------------------------------------------------------------+-
 // ---------------------------------------------------------------------------------------------+-
-extern void TRC_Core( trcType traceType,
-        const char *fileName, const char *functionName, int lineNumber,
-        trcLvl traceLevel, const char *formatStr, ...)
+extern void TRC_Core( trcType trace_type,
+        const char *file_name, const char *function_name, int line_number,
+        trcLvl trace_level, const char *format_string, ...)
 {
+    int     num_chars;
+    int     content_len;
+    size_t  size = CONTENT_BUFFER_SIZE;
+    va_list argptr;
+
     if (!ModuleInitialized) return;
 
-    // Bail out unless the given level is above or equal to the current min level.
-    if (!(traceLevel >= MinLevelToPrint)) return;
+    if (!(trace_level >= MinLevelToDispatch)) return;
 
-    temp_message_len = strlen((const char *)temp_message);
-    TRC_Dispatch_Message(temp_message, temp_message_len);
+    // Format the caller's message into the content buffer.
+    // The vsnprintf() function does not write more than size bytes
+    // including the terminating null byte.
+    va_start(argptr, format_string);
+    num_chars = vsnprintf(
+        Content_Buffer, size, format_string, argptr
+    );
+    va_end(argptr);
+
+    // As per the standard: a return value of size or more
+    // means that the output was truncated.
+    if(num_chars >= size)
+    {
+        // ensure null termination on string.
+        // @@@ this should not be necessary??? @@@
+        Content_Buffer[ size-1 ] = '\0';
+
+        content_len = size-1;
+    }
+    else {
+        content_len = num_chars;
+    }
+
+    TRC_Dispatch_Message((uint8_t *)Content_Buffer, content_len);
+#if 0
+#endif
 
     return;
 }
@@ -74,19 +103,11 @@ void TRC_Initialize(void)
 ------------------------------------------------------------------------------------------------+-
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdbool.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
 
 #include "tlog.h"
 #include "tlog-adaptation.h"
 #include "platform/usart/usart-it-cli.h"
 
-
-#ifndef CONTENT_BUFFER_SIZE
-#define CONTENT_BUFFER_SIZE (160U)
-#endif
 
 #ifndef LOG_LINE_RETURN_STRING
 #define LOG_LINE_RETURN_STRING ("\r\n" ANSI_COLOR_RESET)
@@ -100,7 +121,6 @@ void TRC_Initialize(void)
 #define CLEX_UNUSED_RETURN_VALUE(X)  CLEX_UNUSED_VARIABLE(X)
 
 
-static char TraceMessageContentBuff[CONTENT_BUFFER_SIZE];
 static char FullTraceMessageBuff[2*CONTENT_BUFFER_SIZE];
 
 
@@ -174,36 +194,11 @@ static char checkLostMessageIndicator(void)
 // =============================================================================#=
 // Public API Functions
 // =============================================================================#=
-
-
-void tLog_Core(const char *file_path, const char *function_name, int line_number,
-        tLogLevel given_level, const char *format_string, ...)
 {
     int numChars;
 
     CLEX_UNUSED_PARAMETER(function_name);
 
-
-    //if ( false == tlog_enter_critical_section() )
-    //{
-        //setLostMessageIndicator();
-        //return;
-    //}
-
-    // Format the caller's trace message into the content buffer.
-    va_list argptr;
-    va_start(argptr, format_string);
-    numChars = vsnprintf(
-        TraceMessageContentBuff,
-        sizeof(TraceMessageContentBuff),
-        format_string, argptr
-    );
-    va_end(argptr);
-    if( numChars >= sizeof(TraceMessageContentBuff))
-    {
-        // ensure null termination on string.
-        TraceMessageContentBuff[ sizeof(TraceMessageContentBuff)-1 ] = '\0';
-    }
 
     // @@@ TODO: convert this to days, hours, mins, seconds, msecs;
     // or some better date time string.
@@ -220,14 +215,14 @@ void tLog_Core(const char *file_path, const char *function_name, int line_number
         abridged_file_path(file_path),
         line_number,
         checkLostMessageIndicator(),
-        TraceMessageContentBuff,
+        Content_Buffer,
         LOG_LINE_RETURN_STRING
     );
 
-    if( numChars >= sizeof(TraceMessageContentBuff))
+    if( numChars >= sizeof(Content_Buffer))
     {
         // ensure null termination on string.
-        TraceMessageContentBuff[ sizeof(TraceMessageContentBuff)-1 ] = '\0';
+        Content_Buffer[ sizeof(Content_Buffer)-1 ] = '\0';
     }
 
     bool boolReturn = tlog_output_formatted_trace_message( (uint8_t *)FullTraceMessageBuff, strlen(FullTraceMessageBuff) );
@@ -237,30 +232,6 @@ void tLog_Core(const char *file_path, const char *function_name, int line_number
 
     if (given_level == tLogLvlFatal) tlog_handle_assertion_failure();
 }
-
-void tLog_Raw(const char *givenBuffer, uint32_t givenLen)
-{
-    if (!loggerInitialized)
-    {
-        return;
-    }
-
-    if (!enableLogging)
-    {
-        return;
-    }
-
-    if ( false == tlog_enter_critical_section() )
-    {
-        return;
-    }
-
-    bool boolReturn = tlog_output_formatted_trace_message( (uint8_t *)givenBuffer, givenLen );
-    if(!boolReturn) setLostMessageIndicator();
-
-    tlog_exit_critical_section();
-}
-
 
 void tLog_SetLogLevel(tLogLevel level)
 {
